@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>MedNeuro3D Viewer</title>
+    <!-- Niivue 라이브러리 및 디자인 도구 불러오기 -->
+    <script src="https://niivue.github.io/niivue/features/niivue.umd.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; background-color: #050508; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+        #canvas-container { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a2e 0%, #050508 100%); }
+        canvas { width: 100%; height: 100%; }
+    </style>
+</head>
+<body>
+    <!-- 상단 바 -->
+    <header class="h-14 border-b border-gray-800 flex items-center px-6 bg-[#0a0a0f] gap-6 shrink-0">
+        <h1 class="text-cyan-500 font-black tracking-tighter text-xl">MED-NEURO 3D</h1>
+        
+        <!-- 요청하신 하늘색 파일 선택 버튼 -->
+        <label class="bg-cyan-500 hover:bg-cyan-400 text-black px-4 py-1.5 rounded font-bold text-sm cursor-pointer transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            파일 선택 (NIfTI)
+            <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
+        </label>
+
+        <div class="text-[10px] text-gray-500 uppercase tracking-widest border-l border-gray-800 pl-6 hidden sm:block">
+            Imaging System Online
+        </div>
+    </header>
+
+    <!-- 뷰어 영역 -->
+    <div id="canvas-container">
+        <canvas id="gl"></canvas>
+        
+        <!-- 조작 안내 팁 -->
+        <div class="absolute bottom-6 left-6 text-[11px] text-gray-400 bg-black/60 p-4 rounded-lg border border-white/10 backdrop-blur-md">
+            <p class="text-cyan-400 font-bold mb-1 underline">INTERACTION GUIDE</p>
+            <p>• <span class="text-white">마우스 휠:</span> 슬라이스 앞/뒤 이동</p>
+            <p>• <span class="text-white">좌클릭 드래그:</span> 3D 모델 회전</p>
+            <p>• <span class="text-white">우클릭 드래그:</span> 밝기/대조(Window) 조절</p>
+        </div>
+    </div>
+
+    <script>
+        // Niivue 설정: 4분할 화면 모드 적용
+        const nv = new niivue.Niivue({
+            show3D: true,
+            backColor: [0.02, 0.02, 0.03, 1],
+            multiplanarLayout: niivue.MULTIPLANAR_TYPE.AUTO, // 자동 4분할
+            crosshairColor: [0, 1, 1, 0.5], // 하늘색 십자선
+            loadingText: "데이터 분석 중..."
+        });
+        
+        nv.attachTo('gl');
+        // 초기 화면을 4분할(3단면 + 3D)로 설정
+        nv.setSliceType(niivue.SLICE_TYPE.MULTIPLANAR);
+
+        // 파일 업로드 시 처리 로직
+        document.getElementById('file-input').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async (r) => {
+                const volumeList = [{
+                    url: file.name,
+                    data: r.target.result,
+                    colormap: "gray",
+                    opacity: 1
+                }];
+                await nv.loadVolumes(volumeList);
+                
+                // 3D 뷰 품질 설정
+                nv.setVolumeRenderOpacity(1.0);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+    </script>
+</body>
+</html>
