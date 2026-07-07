@@ -1,70 +1,78 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
     <meta charset="utf-8">
     <title>3D NIfTI Viewer</title>
     <style>
-        body { margin: 0; background: #050508; color: white; font-family: sans-serif; text-align: center; }
-        header { padding: 15px; background: #111; border-bottom: 1px solid #333; }
-        #status { color: #00ffff; font-size: 13px; margin-top: 8px; font-family: monospace; }
-        #container { width: 100vw; height: calc(100vh - 100px); }
-        canvas { width: 100%; height: 100%; }
-        .btn { background: #00bcd4; color: black; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; display: inline-block; }
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; text-align: center; }
+        header { padding: 20px; background: #111; border-bottom: 1px solid #333; }
+        #status { color: #0ff; font-size: 14px; margin-top: 10px; }
+        #container { width: 100vw; height: calc(100vh - 120px); }
+        canvas { width: 100%; height: 100%; border: 1px solid #222; }
+        .btn { background: #00bcd4; color: black; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; display: inline-block; }
     </style>
+    <!-- 공식 Niivue 라이브러리 주소 (가장 안정적임) -->
+    <script src="https://niivue.github.io/niivue/features/niivue.umd.js"></script>
 </head>
 <body>
 
 <header>
     <label class="btn">
-        파일 열기 (.nii)
+        NIfTI 파일 선택 (.nii)
         <input type="file" id="file-input" style="display:none" accept=".nii,.gz">
     </label>
-    <div id="status">라이브러리 로딩 중...</div>
+    <div id="status">라이브러리 확인 중...</div>
 </header>
 
 <div id="container">
     <canvas id="gl"></canvas>
 </div>
 
-<!-- 라이브러리 주소를 더 범용적인 주소로 변경 -->
-<script src="https://unpkg.com/@niivue/niivue@0.41.1/dist/niivue.umd.js"></script>
-
 <script>
+    // 1. 엔진 변수 선언
     let nv;
 
-    // 라이브러리가 로드되었는지 확인하는 함수
-    function checkLibrary() {
-        if (typeof niivue !== 'undefined') {
-            startEngine();
-        } else {
-            console.log("기다리는 중...");
-            setTimeout(checkLibrary, 500); // 0.5초마다 재시도
-        }
-    }
-
-    function startEngine() {
+    // 2. 초기화 함수
+    function init() {
         const status = document.getElementById('status');
+        
+        // 라이브러리가 로드되었는지 체크
+        if (typeof niivue === 'undefined') {
+            status.innerHTML = "<span style='color:red'>라이브러리 로드 실패! 인터넷 연결을 확인하거나 잠시만 기다려주세요.</span>";
+            // 1초 뒤에 다시 확인 (자동 재시도)
+            setTimeout(init, 1000);
+            return;
+        }
+
         try {
+            status.innerText = "라이브러리 로드 완료! .nii 파일을 선택해 주세요.";
+            
+            // 엔진 생성
             nv = new niivue.Niivue({
                 show3D: true,
-                backColor: [0.05, 0.05, 0.05, 1],
-                multiplanarLayout: 1 
+                backColor: [0, 0, 0, 1],
+                multiplanarLayout: 1 // 4분할 레이아웃
             });
+
+            // 캔버스 연결
             nv.attachTo('gl');
+            
+            // 4분할 뷰 설정
             nv.setSliceType(niivue.SLICE_TYPE.MULTIPLANAR);
-            status.innerText = "준비 완료! .nii 파일을 선택해 주세요.";
+            
         } catch (e) {
-            status.innerText = "엔진 시작 실패: " + e.message;
+            status.innerText = "엔진 시작 에러: " + e.message;
+            console.error(e);
         }
     }
 
-    // 파일 업로드 처리
+    // 3. 파일 업로드 이벤트
     document.getElementById('file-input').onchange = async (e) => {
         const file = e.target.files[0];
         if (!file || !nv) return;
 
         const status = document.getElementById('status');
-        status.innerText = "파일 로드 중: " + file.name;
+        status.innerText = "파일을 읽고 있습니다: " + file.name;
 
         const reader = new FileReader();
         reader.onload = async (event) => {
@@ -74,7 +82,7 @@
                     data: event.target.result
                 }];
                 await nv.loadVolumes(volumeList);
-                status.innerText = "로딩 성공! 휠을 돌려보세요.";
+                status.innerText = "로딩 성공! 마우스 휠로 단면을 이동해보세요.";
             } catch (err) {
                 status.innerText = "파일 읽기 실패: " + err.message;
             }
@@ -82,8 +90,8 @@
         reader.readAsArrayBuffer(file);
     };
 
-    // 실행 시작
-    checkLibrary();
+    // 페이지 로드 시 실행
+    window.onload = init;
 </script>
 
 </body>
