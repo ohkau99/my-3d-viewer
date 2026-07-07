@@ -2,84 +2,81 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>MedNeuro3D - Diagnosis Mode</title>
+    <title>MedNeuro3D - Stable Viewer</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/@niivue/niivue@0.45.1/dist/niivue.umd.js"></script>
-</head>
-<body class="bg-black text-white overflow-hidden">
-    <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
-        <h1 class="text-cyan-500 font-black text-xl">MED-NEURO 3D</h1>
-        <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400 transition-all">
-            파일 선택
-            <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
-        </label>
-        <div id="status" class="text-xs font-mono text-cyan-300">파일을 기다리는 중...</div>
-    </header>
+    <!-- 가장 안정적인 최신 ESM 모듈 방식 사용 -->
+    <script type="module">
+        import { Niivue, MULTIPLANAR_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
 
-    <!-- 에러 메시지 상세 표시창 -->
-    <div id="error-log" class="hidden bg-red-900/50 border border-red-500 m-4 p-4 rounded text-xs text-red-200 overflow-auto max-h-32 font-mono">
-    </div>
-
-    <div id="container" class="w-screen h-[calc(100vh-64px)] bg-[#050505]">
-        <canvas id="gl" class="w-full h-full"></canvas>
-    </div>
-
-    <script>
         let nv;
-        const status = document.getElementById('status');
-        const errorLog = document.getElementById('error-log');
 
-        function showError(msg, detail) {
-            errorLog.classList.remove('hidden');
-            errorLog.innerHTML = `<strong>로드 실패:</strong> ${msg}<br><small>${detail}</small>`;
-        }
-
-        window.onload = async function() {
+        async function init() {
+            const status = document.getElementById('status');
             try {
-                if (typeof niivue === 'undefined') {
-                    status.innerText = "라이브러리 로드 실패";
-                    return;
-                }
-
-                nv = new niivue.Niivue({
+                nv = new Niivue({
                     show3D: true,
                     backColor: [0, 0, 0, 1],
-                    multiplanarLayout: 1
+                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO
                 });
                 nv.attachTo('gl');
-                status.innerText = "준비 완료. 파일을 선택하세요.";
+                status.innerText = "준비 완료. 88MB 파일도 처리 가능합니다.";
             } catch (e) {
-                showError("초기화 중 오류", e.message);
+                status.innerText = "엔진 초기화 실패";
             }
-        };
+        }
 
         document.getElementById('file-input').onchange = async (e) => {
             const file = e.target.files[0];
-            if (!file) return;
+            if (!file || !nv) return;
 
-            errorLog.classList.add('hidden');
-            status.innerText = `분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+            const status = document.getElementById('status');
+            status.innerText = `로딩 중: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
             
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    const volumeList = [{
-                        url: file.name,
-                        data: event.target.result,
-                        colormap: "gray"
-                    }];
-                    
-                    // 핵심 로딩 부분
-                    await nv.loadVolumes(volumeList);
-                    status.innerText = "분석 완료: " + file.name;
-                } catch (err) {
-                    showError("파일 분석 중 치명적 에러", err.message);
-                    console.error(err);
-                }
-            };
-            reader.onerror = (e) => showError("파일 읽기 오류", "파일을 읽는 도중 중단되었습니다.");
-            reader.readAsArrayBuffer(file);
+            try {
+                // 기존 데이터 삭제 (메모리 정리)
+                await nv.volumes.forEach(v => nv.removeVolume(v));
+
+                // 핵심: FileReader 대신 Blob URL 사용 (가장 빠르고 안전함)
+                const objectUrl = URL.createObjectURL(file);
+                
+                const volumeList = [{
+                    url: objectUrl,
+                    name: file.name,
+                    colormap: "gray",
+                    opacity: 1
+                }];
+
+                await nv.loadVolumes(volumeList);
+                
+                // 가상 URL 메모리 해제
+                URL.revokeObjectURL(objectUrl);
+                
+                status.innerText = "분석 완료: " + file.name;
+            } catch (err) {
+                status.innerHTML = `<span style="color:red font-weight:bold">로드 실패: ${err.message}</span>`;
+                console.error(err);
+            }
         };
+
+        window.onload = init;
     </script>
+    <style>
+        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+        #container { width: 100vw; height: calc(100vh - 64px); background: #050505; }
+        canvas { width: 100%; height: 100%; display: block; }
+    </style>
+</head>
+<body>
+    <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
+        <h1 class="text-cyan-500 font-black text-xl">MED-NEURO 3D</h1>
+        <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400">
+            파일 선택
+            <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
+        </label>
+        <div id="status" class="text-xs font-mono text-cyan-300 italic">엔진 로딩 중...</div>
+    </header>
+    <div id="container">
+        <canvas id="gl"></canvas>
+    </div>
 </body>
 </html>
