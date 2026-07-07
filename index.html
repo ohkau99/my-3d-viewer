@@ -4,79 +4,97 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>MedNeuro3D Viewer</title>
-    <!-- Niivue 라이브러리 및 디자인 도구 불러오기 -->
+    <!-- 1. Niivue 라이브러리 (최신 안정 버전) -->
     <script src="https://niivue.github.io/niivue/features/niivue.umd.js"></script>
+    <!-- 2. 디자인 도구 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; background-color: #050508; color: white; font-family: sans-serif; height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
-        #canvas-container { flex-grow: 1; position: relative; background: radial-gradient(circle, #1a1a2e 0%, #050508 100%); }
-        canvas { width: 100%; height: 100%; }
+        #canvas-container { flex-grow: 1; width: 100%; height: 100%; position: relative; }
+        canvas { display: block; width: 100%; height: 100%; }
+        /* 로딩 표시기 */
+        #loader { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); padding: 20px; border-radius: 10px; border: 1px solid #22d3ee; z-index: 100; }
     </style>
 </head>
 <body>
-    <!-- 상단 바 -->
-    <header class="h-14 border-b border-gray-800 flex items-center px-6 bg-[#0a0a0f] gap-6 shrink-0">
+    <header class="h-16 border-b border-gray-800 flex items-center px-6 bg-[#0d0d14] gap-6 shrink-0 shadow-lg">
         <h1 class="text-cyan-500 font-black tracking-tighter text-xl">MED-NEURO 3D</h1>
         
-        <!-- 요청하신 하늘색 파일 선택 버튼 -->
-        <label class="bg-cyan-500 hover:bg-cyan-400 text-black px-4 py-1.5 rounded font-bold text-sm cursor-pointer transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            파일 선택 (NIfTI)
+        <!-- 파일 선택 버튼 -->
+        <label class="bg-cyan-500 hover:bg-cyan-400 text-black px-5 py-2 rounded-full font-bold text-sm cursor-pointer transition-all flex items-center gap-2">
+            <span>파일 열기 (.nii)</span>
             <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
         </label>
-
-        <div class="text-[10px] text-gray-500 uppercase tracking-widest border-l border-gray-800 pl-6 hidden sm:block">
-            Imaging System Online
-        </div>
+        
+        <div id="file-name" class="text-xs text-gray-500 italic truncate max-w-[200px]">파일을 선택해주세요</div>
     </header>
 
-    <!-- 뷰어 영역 -->
     <div id="canvas-container">
+        <!-- 핵심: 이 canvas 태그에 모든 3D 영상이 그려집니다 -->
         <canvas id="gl"></canvas>
         
-        <!-- 조작 안내 팁 -->
-        <div class="absolute bottom-6 left-6 text-[11px] text-gray-400 bg-black/60 p-4 rounded-lg border border-white/10 backdrop-blur-md">
-            <p class="text-cyan-400 font-bold mb-1 underline">INTERACTION GUIDE</p>
-            <p>• <span class="text-white">마우스 휠:</span> 슬라이스 앞/뒤 이동</p>
+        <div id="loader text-cyan-400 font-bold">이미지 처리 중...</div>
+
+        <div class="absolute bottom-6 left-6 text-[11px] text-gray-400 bg-black/70 p-4 rounded-xl border border-white/10 backdrop-blur-md shadow-2xl">
+            <p class="text-cyan-400 font-bold mb-2 border-b border-white/10 pb-1">조작 가이드</p>
+            <p>• <span class="text-white">마우스 휠:</span> 단면 앞/뒤 이동</p>
             <p>• <span class="text-white">좌클릭 드래그:</span> 3D 모델 회전</p>
-            <p>• <span class="text-white">우클릭 드래그:</span> 밝기/대조(Window) 조절</p>
+            <p>• <span class="text-white">우클릭 드래그:</span> 밝기 조절 (Windowing)</p>
+            <p>• <span class="text-white">더블 클릭:</span> 뷰어 초기화</p>
         </div>
     </div>
 
     <script>
-        // Niivue 설정: 4분할 화면 모드 적용
-        const nv = new niivue.Niivue({
-            show3D: true,
-            backColor: [0.02, 0.02, 0.03, 1],
-            multiplanarLayout: niivue.MULTIPLANAR_TYPE.AUTO, // 자동 4분할
-            crosshairColor: [0, 1, 1, 0.5], // 하늘색 십자선
-            loadingText: "데이터 분석 중..."
-        });
-        
-        nv.attachTo('gl');
-        // 초기 화면을 4분할(3단면 + 3D)로 설정
-        nv.setSliceType(niivue.SLICE_TYPE.MULTIPLANAR);
+        // 엔진 초기화 함수
+        async function initViewer() {
+            // Niivue 라이브러리가 로드될 때까지 잠시 대기
+            if (typeof niivue === 'undefined') {
+                setTimeout(initViewer, 100);
+                return;
+            }
 
-        // 파일 업로드 시 처리 로직
-        document.getElementById('file-input').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+            const nv = new niivue.Niivue({
+                show3D: true,
+                backColor: [0.03, 0.03, 0.05, 1],
+                multiplanarLayout: niivue.MULTIPLANAR_TYPE.AUTO, // 4분할 모드
+                loadingText: "로딩 중...",
+                crosshairColor: [0, 1, 1, 0.4]
+            });
+            
+            nv.attachTo('gl');
+            nv.setSliceType(niivue.SLICE_TYPE.MULTIPLANAR);
 
-            const reader = new FileReader();
-            reader.onload = async (r) => {
-                const volumeList = [{
-                    url: file.name,
-                    data: r.target.result,
-                    colormap: "gray",
-                    opacity: 1
-                }];
-                await nv.loadVolumes(volumeList);
+            // 파일 입력 감지
+            const fileInput = document.getElementById('file-input');
+            fileInput.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                document.getElementById('file-name').innerText = file.name;
+                const reader = new FileReader();
                 
-                // 3D 뷰 품질 설정
-                nv.setVolumeRenderOpacity(1.0);
+                reader.onload = async (r) => {
+                    try {
+                        const volumeList = [{
+                            url: file.name,
+                            data: r.target.result,
+                            colormap: "gray",
+                            opacity: 1
+                        }];
+                        await nv.loadVolumes(volumeList);
+                        // 로드 후 3D 렌더링 최적화
+                        nv.setVolumeRenderOpacity(1.0);
+                    } catch (err) {
+                        alert("파일을 읽는 중 오류가 발생했습니다. 올바른 .nii 파일인지 확인해주세요.");
+                        console.error(err);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             };
-            reader.readAsArrayBuffer(file);
-        };
+        }
+
+        // 페이지 로드 시 실행
+        window.onload = initViewer;
     </script>
 </body>
 </html>
