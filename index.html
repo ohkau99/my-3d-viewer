@@ -2,11 +2,10 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>MedNeuro3D - Stable Viewer</title>
+    <title>MedNeuro3D - 3D Enhanced</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 가장 안정적인 최신 ESM 모듈 방식 사용 -->
     <script type="module">
-        import { Niivue, MULTIPLANAR_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
+        import { Niivue, MULTIPLANAR_TYPE, SLICE_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
 
         let nv;
 
@@ -14,12 +13,15 @@
             const status = document.getElementById('status');
             try {
                 nv = new Niivue({
-                    show3D: true,
+                    show3D: true, // 3D 모드 활성화
                     backColor: [0, 0, 0, 1],
-                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO
+                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO,
+                    isColorbar: false // 화면 깔끔하게
                 });
                 nv.attachTo('gl');
-                status.innerText = "준비 완료. 88MB 파일도 처리 가능합니다.";
+                // 초기 레이아웃을 '4분할'로 강제 고정
+                nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
+                status.innerText = "시스템 준비 완료. 파일을 선택하세요.";
             } catch (e) {
                 status.innerText = "엔진 초기화 실패";
             }
@@ -30,31 +32,32 @@
             if (!file || !nv) return;
 
             const status = document.getElementById('status');
-            status.innerText = `로딩 중: ${file.name} (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+            status.innerText = `3D 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
             
             try {
-                // 기존 데이터 삭제 (메모리 정리)
                 await nv.volumes.forEach(v => nv.removeVolume(v));
 
-                // 핵심: FileReader 대신 Blob URL 사용 (가장 빠르고 안전함)
                 const objectUrl = URL.createObjectURL(file);
-                
                 const volumeList = [{
                     url: objectUrl,
                     name: file.name,
                     colormap: "gray",
-                    opacity: 1
+                    opacity: 1,
+                    visible: true
                 }];
 
                 await nv.loadVolumes(volumeList);
                 
-                // 가상 URL 메모리 해제
+                // --- 3D 화면을 강제로 띄우는 핵심 설정 ---
+                nv.setSliceType(SLICE_TYPE.MULTIPLANAR); // 4분할 유지
+                nv.setVolumeRenderOpacity(1.0); // 3D를 불투명하게 (잘 보이게)
+                nv.setHighResolutionCapable(true); // 고화질 모드
+                // ---------------------------------------
+
                 URL.revokeObjectURL(objectUrl);
-                
                 status.innerText = "분석 완료: " + file.name;
             } catch (err) {
-                status.innerHTML = `<span style="color:red font-weight:bold">로드 실패: ${err.message}</span>`;
-                console.error(err);
+                status.innerHTML = `<span style="color:red">로드 실패: ${err.message}</span>`;
             }
         };
 
@@ -68,12 +71,12 @@
 </head>
 <body>
     <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
-        <h1 class="text-cyan-500 font-black text-xl">MED-NEURO 3D</h1>
+        <h1 class="text-cyan-500 font-black text-xl tracking-tighter">MED-NEURO 3D</h1>
         <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400">
             파일 선택
             <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
         </label>
-        <div id="status" class="text-xs font-mono text-cyan-300 italic">엔진 로딩 중...</div>
+        <div id="status" class="text-xs font-mono text-cyan-300">엔진 대기 중...</div>
     </header>
     <div id="container">
         <canvas id="gl"></canvas>
