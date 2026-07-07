@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>MedNeuro3D - 3D Enhanced</title>
+    <title>MedNeuro3D - Final Fix</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module">
         import { Niivue, MULTIPLANAR_TYPE, SLICE_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
@@ -15,11 +15,11 @@
                 nv = new Niivue({
                     show3D: true, // 3D 모드 활성화
                     backColor: [0, 0, 0, 1],
-                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO,
-                    isColorbar: false // 화면 깔끔하게
+                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO, // 4분할 레이아웃
+                    isColorbar: false
                 });
                 nv.attachTo('gl');
-                // 초기 레이아웃을 '4분할'로 강제 고정
+                // 초기 화면을 4분할로 설정
                 nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
                 status.innerText = "시스템 준비 완료. 파일을 선택하세요.";
             } catch (e) {
@@ -32,32 +32,40 @@
             if (!file || !nv) return;
 
             const status = document.getElementById('status');
-            status.innerText = `3D 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+            status.innerText = `데이터 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
             
             try {
-                await nv.volumes.forEach(v => nv.removeVolume(v));
+                // 이전 데이터 제거
+                if (nv.volumes.length > 0) {
+                    await nv.removeVolume(nv.volumes[0]);
+                }
 
                 const objectUrl = URL.createObjectURL(file);
                 const volumeList = [{
                     url: objectUrl,
                     name: file.name,
                     colormap: "gray",
-                    opacity: 1,
+                    opacity: 1.0, // 불투명도 설정
                     visible: true
                 }];
 
                 await nv.loadVolumes(volumeList);
                 
-                // --- 3D 화면을 강제로 띄우는 핵심 설정 ---
-                nv.setSliceType(SLICE_TYPE.MULTIPLANAR); // 4분할 유지
-                nv.setVolumeRenderOpacity(1.0); // 3D를 불투명하게 (잘 보이게)
-                nv.setHighResolutionCapable(true); // 고화질 모드
-                // ---------------------------------------
+                // --- 3D 화면을 활성화하는 안전한 방법 ---
+                nv.setSliceType(SLICE_TYPE.MULTIPLANAR); 
+                
+                // 3D 렌더링 강도를 조절하는 속성 직접 설정
+                if (nv.volumes.length > 0) {
+                    nv.volumes[0].opacity = 1.0;
+                }
+                
+                nv.updateDisplay(); // 화면 갱신
+                // ------------------------------------
 
                 URL.revokeObjectURL(objectUrl);
-                status.innerText = "분석 완료: " + file.name;
+                status.innerText = "분석 성공: " + file.name;
             } catch (err) {
-                status.innerHTML = `<span style="color:red">로드 실패: ${err.message}</span>`;
+                status.innerHTML = `<span style="color:red">분석 실패: ${err.message}</span>`;
             }
         };
 
