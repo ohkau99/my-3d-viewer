@@ -2,95 +2,84 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <title>MedNeuro3D - Debug Mode</title>
+    <title>MedNeuro3D - Diagnosis Mode</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
-        #container { width: 100vw; height: calc(100vh - 64px); background: #050505; }
-        canvas { width: 100%; height: 100%; display: block; }
-    </style>
+    <script src="https://unpkg.com/@niivue/niivue@0.45.1/dist/niivue.umd.js"></script>
 </head>
-<body>
-
+<body class="bg-black text-white overflow-hidden">
     <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
-        <h1 class="text-cyan-500 font-black text-xl tracking-tighter">MED-NEURO 3D</h1>
-        <label class="bg-cyan-500 hover:bg-cyan-400 text-black px-4 py-2 rounded-md font-bold text-sm cursor-pointer transition-all">
-            파일 선택 (.nii)
+        <h1 class="text-cyan-500 font-black text-xl">MED-NEURO 3D</h1>
+        <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400 transition-all">
+            파일 선택
             <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
         </label>
-        <div id="status" class="text-xs text-cyan-200/50 font-mono">엔진 대기 중...</div>
+        <div id="status" class="text-xs font-mono text-cyan-300">파일을 기다리는 중...</div>
     </header>
 
-    <div id="container">
-        <canvas id="gl"></canvas>
+    <!-- 에러 메시지 상세 표시창 -->
+    <div id="error-log" class="hidden bg-red-900/50 border border-red-500 m-4 p-4 rounded text-xs text-red-200 overflow-auto max-h-32 font-mono">
     </div>
 
-    <script type="module">
-        import { Niivue, SLICE_TYPE, MULTIPLANAR_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
+    <div id="container" class="w-screen h-[calc(100vh-64px)] bg-[#050505]">
+        <canvas id="gl" class="w-full h-full"></canvas>
+    </div>
 
+    <script>
         let nv;
+        const status = document.getElementById('status');
+        const errorLog = document.getElementById('error-log');
 
-        async function init() {
-            const status = document.getElementById('status');
+        function showError(msg, detail) {
+            errorLog.classList.remove('hidden');
+            errorLog.innerHTML = `<strong>로드 실패:</strong> ${msg}<br><small>${detail}</small>`;
+        }
+
+        window.onload = async function() {
             try {
-                nv = new Niivue({
+                if (typeof niivue === 'undefined') {
+                    status.innerText = "라이브러리 로드 실패";
+                    return;
+                }
+
+                nv = new niivue.Niivue({
                     show3D: true,
                     backColor: [0, 0, 0, 1],
-                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO,
-                    loadingText: "파일 분석 중..."
+                    multiplanarLayout: 1
                 });
-
                 nv.attachTo('gl');
-                nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
-                
-                status.innerText = "시스템 준비 완료. 파일을 선택하세요.";
-            } catch (err) {
-                status.innerHTML = `<span class="text-red-500">엔진 초기화 실패: ${err.message}</span>`;
+                status.innerText = "준비 완료. 파일을 선택하세요.";
+            } catch (e) {
+                showError("초기화 중 오류", e.message);
             }
-        }
+        };
 
         document.getElementById('file-input').onchange = async (e) => {
             const file = e.target.files[0];
-            if (!file || !nv) return;
+            if (!file) return;
 
-            const status = document.getElementById('status');
+            errorLog.classList.add('hidden');
             status.innerText = `분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
             
             const reader = new FileReader();
             reader.onload = async (event) => {
                 try {
-                    // 기존 데이터 초기화 (메모리 확보)
-                    await nv.volumes.forEach(v => nv.removeVolume(v));
-                    
                     const volumeList = [{
                         url: file.name,
                         data: event.target.result,
-                        colormap: "gray",
-                        opacity: 1
+                        colormap: "gray"
                     }];
-
-                    // 파일 로드 실행
+                    
+                    // 핵심 로딩 부분
                     await nv.loadVolumes(volumeList);
-                    
-                    // 강제 화면 갱신
-                    nv.updateDisplay();
                     status.innerText = "분석 완료: " + file.name;
-                    
                 } catch (err) {
-                    status.innerHTML = `<span class="text-red-500">로드 실패: ${err.message}</span>`;
-                    console.error("Load Error:", err);
+                    showError("파일 분석 중 치명적 에러", err.message);
+                    console.error(err);
                 }
             };
-
-            reader.onerror = () => {
-                status.innerHTML = `<span class="text-red-500">파일 읽기 실패</span>`;
-            };
-
-            // 메모리 효율을 위해 ArrayBuffer로 읽기
+            reader.onerror = (e) => showError("파일 읽기 오류", "파일을 읽는 도중 중단되었습니다.");
             reader.readAsArrayBuffer(file);
         };
-
-        init();
     </script>
 </body>
 </html>
