@@ -1,93 +1,115 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="utf-8">
-    <title>MedNeuro3D - Final Fix</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module">
-        import { Niivue, MULTIPLANAR_TYPE, SLICE_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
+  <meta charset="utf-8" />
+  <title>MedNeuro3D</title>
+  <script src="https://cdn.tailwindcss.com"></script>
 
-        let nv;
+  <style>
+    body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
+    #container { width: 100vw; height: calc(100vh - 64px); background: #050505; }
+    canvas { width: 100%; height: 100%; display: block; }
+  </style>
+</head>
 
-        async function init() {
-            const status = document.getElementById('status');
-            try {
-                nv = new Niivue({
-                    show3D: true, // 3D 모드 활성화
-                    backColor: [0, 0, 0, 1],
-                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO, // 4분할 레이아웃
-                    isColorbar: false
-                });
-                nv.attachTo('gl');
-                // 초기 화면을 4분할로 설정
-                nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
-                status.innerText = "시스템 준비 완료. 파일을 선택하세요.";
-            } catch (e) {
-                status.innerText = "엔진 초기화 실패";
-            }
+<body>
+  <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
+    <h1 class="text-cyan-500 font-black text-xl tracking-tighter">MED-NEURO 3D</h1>
+
+    <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400">
+      파일 선택
+      <input type="file" id="file-input" class="hidden" accept=".nii,.nii.gz,.gz" />
+    </label>
+
+    <div id="status" class="text-xs font-mono text-cyan-300">엔진 대기 중...</div>
+  </header>
+
+  <div id="container">
+    <canvas id="gl"></canvas>
+  </div>
+
+  <script type="module">
+    import {
+      Niivue,
+      MULTIPLANAR_TYPE,
+      SLICE_TYPE,
+      SHOW_RENDER
+    } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.69.0/+esm";
+
+    let nv;
+    let currentObjectUrl = null;
+
+    const status = document.getElementById("status");
+    const fileInput = document.getElementById("file-input");
+
+    async function init() {
+      try {
+        nv = new Niivue({
+          backColor: [0, 0, 0, 1],
+          isColorbar: false,
+          dragAndDropEnabled: true,
+          multiplanarLayout: MULTIPLANAR_TYPE.GRID,
+          multiplanarShowRender: SHOW_RENDER.ALWAYS,
+          multiplanarEqualSize: true
+        });
+
+        await nv.attachTo("gl");
+
+        nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
+        nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+        nv.opts.multiplanarShowRender = SHOW_RENDER.ALWAYS;
+        nv.opts.multiplanarEqualSize = true;
+        nv.drawScene();
+
+        status.innerText = "시스템 준비 완료. NIfTI 파일을 선택하세요.";
+      } catch (e) {
+        console.error(e);
+        status.innerHTML = `<span style="color:red">엔진 초기화 실패: ${e.message}</span>`;
+      }
+    }
+
+    fileInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file || !nv) return;
+
+      status.innerText = `데이터 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+
+      try {
+        if (currentObjectUrl) {
+          URL.revokeObjectURL(currentObjectUrl);
+          currentObjectUrl = null;
         }
 
-        document.getElementById('file-input').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file || !nv) return;
+        if (nv.volumes.length > 0) {
+          await nv.removeVolume(nv.volumes[0]);
+        }
 
-            const status = document.getElementById('status');
-            status.innerText = `데이터 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
-            
-            try {
-                // 이전 데이터 제거
-                if (nv.volumes.length > 0) {
-                    await nv.removeVolume(nv.volumes[0]);
-                }
+        currentObjectUrl = URL.createObjectURL(file);
 
-                const objectUrl = URL.createObjectURL(file);
-                const volumeList = [{
-                    url: objectUrl,
-                    name: file.name,
-                    colormap: "gray",
-                    opacity: 1.0, // 불투명도 설정
-                    visible: true
-                }];
+        await nv.loadVolumes([{
+          url: currentObjectUrl,
+          name: file.name,
+          colormap: "gray",
+          opacity: 1,
+          visible: true
+        }]);
 
-                await nv.loadVolumes(volumeList);
-                
-                // --- 3D 화면을 활성화하는 안전한 방법 ---
-                nv.setSliceType(SLICE_TYPE.MULTIPLANAR); 
-                
-                // 3D 렌더링 강도를 조절하는 속성 직접 설정
-                if (nv.volumes.length > 0) {
-                    nv.volumes[0].opacity = 1.0;
-                }
-                
-                nv.updateDisplay(); // 화면 갱신
-                // ------------------------------------
+        nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
+        nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+        nv.opts.multiplanarShowRender = SHOW_RENDER.ALWAYS;
+        nv.opts.multiplanarEqualSize = true;
 
-                URL.revokeObjectURL(objectUrl);
-                status.innerText = "분석 성공: " + file.name;
-            } catch (err) {
-                status.innerHTML = `<span style="color:red">분석 실패: ${err.message}</span>`;
-            }
-        };
+        nv.updateGLVolume();
+        nv.drawScene();
 
-        window.onload = init;
-    </script>
-    <style>
-        body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
-        #container { width: 100vw; height: calc(100vh - 64px); background: #050505; }
-        canvas { width: 100%; height: 100%; display: block; }
-    </style>
-</head>
-<body>
-    <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
-        <h1 class="text-cyan-500 font-black text-xl tracking-tighter">MED-NEURO 3D</h1>
-        <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400">
-            파일 선택
-            <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
-        </label>
-        <div id="status" class="text-xs font-mono text-cyan-300">엔진 대기 중...</div>
-    </header>
-    <div id="container">
-        <canvas id="gl"></canvas>
-    </div>
+        status.innerText = "분석 성공: " + file.name;
+      } catch (err) {
+        console.error(err);
+        status.innerHTML = `<span style="color:red">분석 실패: ${err.message}</span>`;
+      }
+    });
+
+    window.addEventListener("load", init);
+  </script>
 </body>
 </html>
