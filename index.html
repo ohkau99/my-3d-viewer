@@ -2,13 +2,12 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>MedNeuro3D Viewer</title>
+    <title>MedNeuro3D - Debug Mode</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { margin: 0; background: #000; color: white; font-family: sans-serif; overflow: hidden; }
         #container { width: 100vw; height: calc(100vh - 64px); background: #050505; }
-        canvas { width: 100%; height: 100%; }
+        canvas { width: 100%; height: 100%; display: block; }
     </style>
 </head>
 <body>
@@ -19,16 +18,14 @@
             파일 선택 (.nii)
             <input type="file" id="file-input" class="hidden" accept=".nii,.gz" />
         </label>
-        <div id="status" class="text-xs text-cyan-200/50 font-mono">엔진 로드 중...</div>
+        <div id="status" class="text-xs text-cyan-200/50 font-mono">엔진 대기 중...</div>
     </header>
 
     <div id="container">
         <canvas id="gl"></canvas>
     </div>
 
-    <!-- 구식 스크립트 방식이 아닌 현대적 모듈 방식 사용 -->
     <script type="module">
-        // 1. 최신 Niivue 모듈을 인터넷에서 직접 불러옵니다 (가장 안정적)
         import { Niivue, SLICE_TYPE, MULTIPLANAR_TYPE } from 'https://cdn.jsdelivr.net/npm/@niivue/niivue@0.45.1/+esm';
 
         let nv;
@@ -36,40 +33,60 @@
         async function init() {
             const status = document.getElementById('status');
             try {
-                // 2. 엔진 초기화
                 nv = new Niivue({
                     show3D: true,
                     backColor: [0, 0, 0, 1],
-                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO
+                    multiplanarLayout: MULTIPLANAR_TYPE.AUTO,
+                    loadingText: "파일 분석 중..."
                 });
 
                 nv.attachTo('gl');
                 nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
                 
-                status.innerText = "준비 완료! .nii 파일을 선택하세요.";
+                status.innerText = "시스템 준비 완료. 파일을 선택하세요.";
             } catch (err) {
-                status.innerText = "초기화 에러: " + err.message;
-                console.error(err);
+                status.innerHTML = `<span class="text-red-500">엔진 초기화 실패: ${err.message}</span>`;
             }
         }
 
-        // 파일 업로드 이벤트
         document.getElementById('file-input').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file || !nv) return;
 
-            document.getElementById('status').innerText = "데이터 분석 중: " + file.name;
+            const status = document.getElementById('status');
+            status.innerText = `분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
             
             const reader = new FileReader();
             reader.onload = async (event) => {
-                const volumeList = [{
-                    url: file.name,
-                    data: event.target.result,
-                    colormap: "gray"
-                }];
-                await nv.loadVolumes(volumeList);
-                document.getElementById('status').innerText = "분석 완료. 조작이 가능합니다.";
+                try {
+                    // 기존 데이터 초기화 (메모리 확보)
+                    await nv.volumes.forEach(v => nv.removeVolume(v));
+                    
+                    const volumeList = [{
+                        url: file.name,
+                        data: event.target.result,
+                        colormap: "gray",
+                        opacity: 1
+                    }];
+
+                    // 파일 로드 실행
+                    await nv.loadVolumes(volumeList);
+                    
+                    // 강제 화면 갱신
+                    nv.updateDisplay();
+                    status.innerText = "분석 완료: " + file.name;
+                    
+                } catch (err) {
+                    status.innerHTML = `<span class="text-red-500">로드 실패: ${err.message}</span>`;
+                    console.error("Load Error:", err);
+                }
             };
+
+            reader.onerror = () => {
+                status.innerHTML = `<span class="text-red-500">파일 읽기 실패</span>`;
+            };
+
+            // 메모리 효율을 위해 ArrayBuffer로 읽기
             reader.readAsArrayBuffer(file);
         };
 
