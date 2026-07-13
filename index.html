@@ -1,57 +1,187 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
   <title>MedNeuro3D</title>
+
   <script src="https://cdn.tailwindcss.com"></script>
 
+  <!--
+    Three.js modules such as OrbitControls and GLTFLoader
+    internally import "three".
+
+    This import map tells the browser where to find it.
+  -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+
   <style>
+    html,
     body {
+      width: 100%;
+      height: 100%;
       margin: 0;
-      background: #000;
-      color: white;
-      font-family: sans-serif;
       overflow: hidden;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
     }
 
-    #container {
+    #viewer-container {
+      position: relative;
       width: 100vw;
       height: calc(100vh - 64px);
       background: #050505;
+      overflow: hidden;
     }
 
-    canvas {
+    #nifti-viewer {
       width: 100%;
       height: 100%;
       display: block;
+    }
+
+    /*
+      This panel covers the lower-right quarter
+      of the Niivue 2x2 grid.
+    */
+    #lesion-panel {
+      position: absolute;
+      right: 0;
+      bottom: 0;
+      width: 50%;
+      height: 50%;
+      z-index: 20;
+      overflow: hidden;
+      background: #000;
+      border-top: 1px solid #333;
+      border-left: 1px solid #333;
+      box-sizing: border-box;
+    }
+
+    #lesion-viewer {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      background: #000;
+    }
+
+    #lesion-placeholder {
+      position: absolute;
+      inset: 0;
+      z-index: 3;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      color: #555;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      pointer-events: none;
+    }
+
+    #lesion-label {
+      position: absolute;
+      top: 10px;
+      left: 12px;
+      z-index: 5;
+      padding: 4px 8px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.65);
+      color: #67e8f9;
+      font-size: 12px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.4;
     }
   </style>
 </head>
 
 <body>
-  <header class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-4">
-    <h1 class="text-cyan-500 font-black text-xl tracking-tighter">
+  <header
+    class="h-16 bg-[#111] border-b border-gray-800 flex items-center px-6 gap-3"
+  >
+    <h1
+      class="text-cyan-500 font-black text-xl tracking-tighter mr-3"
+    >
       MED-NEURO 3D
     </h1>
 
-    <label class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm cursor-pointer hover:bg-cyan-400">
-      파일 선택
+    <label
+      class="bg-cyan-500 text-black px-4 py-2 rounded font-bold text-sm
+             cursor-pointer hover:bg-cyan-400"
+    >
+      Upload MRI
+
       <input
         type="file"
-        id="file-input"
+        id="nifti-input"
         class="hidden"
         accept=".nii,.nii.gz,.gz"
       />
     </label>
 
-    <div id="status" class="text-xs font-mono text-cyan-300">
-      엔진 대기 중...
+    <button
+      id="generate-button"
+      type="button"
+      class="bg-purple-500 text-white px-4 py-2 rounded font-bold text-sm
+             hover:bg-purple-400"
+      disabled
+    >
+      Generate 3D
+    </button>
+
+    <div
+      id="status"
+      class="ml-auto text-xs font-mono text-cyan-300"
+    >
+      Initializing viewer...
     </div>
   </header>
 
-  <div id="container">
-    <canvas id="gl"></canvas>
-  </div>
+  <main id="viewer-container">
+
+    <!--
+      Niivue displays the MRI as a 2x2 grid:
+      axial, coronal, sagittal and volume rendering.
+
+      The lower-right volume-rendering area is covered
+      by the separate Three.js lesion panel.
+    -->
+    <canvas id="nifti-viewer"></canvas>
+
+    <section id="lesion-panel">
+      <canvas id="lesion-viewer"></canvas>
+
+      <div id="lesion-placeholder">
+        3D MODEL NOT GENERATED
+      </div>
+
+      <div id="lesion-label">
+        3D LESION
+      </div>
+    </section>
+
+  </main>
 
   <script type="module">
     import {
@@ -61,100 +191,798 @@
       SHOW_RENDER
     } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.69.0/+esm";
 
+    import * as THREE from "three";
+
+    import { OrbitControls }
+      from "three/addons/controls/OrbitControls.js";
+
+    import { GLTFLoader }
+      from "three/addons/loaders/GLTFLoader.js";
+
+    /*
+      The pre-generated lesion model.
+
+      patient07.glb must be placed in the same folder
+      as index.html.
+    */
+    const GLB_FILE_PATH = "./patient07.glb";
+
     let nv = null;
-    let currentObjectUrl = null;
+    let niftiObjectUrl = null;
+    let mriLoaded = false;
 
-    const status = document.getElementById("status");
-    const fileInput = document.getElementById("file-input");
+    let scene = null;
+    let camera = null;
+    let renderer = null;
+    let controls = null;
+    let lesionModel = null;
 
-    async function init() {
+    const niftiInput =
+      document.getElementById("nifti-input");
+
+    const generateButton =
+      document.getElementById("generate-button");
+
+    const status =
+      document.getElementById("status");
+
+    const lesionPanel =
+      document.getElementById("lesion-panel");
+
+    const lesionPlaceholder =
+      document.getElementById("lesion-placeholder");
+
+    /**
+     * Initialize the Niivue MRI viewer.
+     */
+    async function initializeNiftiViewer() {
       try {
         nv = new Niivue({
           backColor: [0, 0, 0, 1],
           isColorbar: false,
-          dragAndDropEnabled: true,
+          dragAndDropEnabled: false,
 
-          // 2x2 형태: axial / coronal / sagittal / 3D render
+          /*
+            GRID with render enabled creates four equal areas:
+            axial, coronal, sagittal and 3D rendering.
+
+            The 3D rendering area is visually covered by
+            the Three.js panel.
+          */
           multiplanarLayout: MULTIPLANAR_TYPE.GRID,
           multiplanarShowRender: SHOW_RENDER.ALWAYS,
           multiplanarEqualSize: true
         });
 
-        await nv.attachTo("gl");
+        await nv.attachTo("nifti-viewer");
 
-        nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
-        nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+        nv.setSliceType(
+          SLICE_TYPE.MULTIPLANAR
+        );
 
-        nv.opts.multiplanarShowRender = SHOW_RENDER.ALWAYS;
-        nv.opts.multiplanarEqualSize = true;
+        nv.setMultiplanarLayout(
+          MULTIPLANAR_TYPE.GRID
+        );
+
+        nv.opts.multiplanarShowRender =
+          SHOW_RENDER.ALWAYS;
+
+        nv.opts.multiplanarEqualSize =
+          true;
 
         nv.drawScene();
 
-        status.innerText = "시스템 준비 완료. NIfTI 파일을 선택하세요.";
-      } catch (e) {
-        console.error(e);
+        status.textContent =
+          "Ready. Upload a NIfTI MRI file.";
+      } catch (error) {
+        console.error(
+          "Niivue initialization error:",
+          error
+        );
+
         status.innerHTML =
-          `<span style="color:red">엔진 초기화 실패: ${e.message}</span>`;
+          `<span style="color:#f87171">
+            MRI viewer initialization failed: ${escapeHtml(error.message)}
+          </span>`;
       }
     }
 
-    async function loadNiftiFile(file) {
-      if (!file || !nv) return;
+    /**
+     * Initialize the Three.js viewer used for patient07.glb.
+     */
+    function initializeLesionViewer() {
+      const canvas =
+        document.getElementById("lesion-viewer");
 
-      status.innerText =
-        `데이터 분석 중... (${(file.size / 1024 / 1024).toFixed(1)}MB)`;
+      scene = new THREE.Scene();
+
+      scene.background =
+        new THREE.Color(0x000000);
+
+      camera = new THREE.PerspectiveCamera(
+        40,
+        1,
+        0.001,
+        100000
+      );
+
+      camera.position.set(0, 0, 5);
+
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: false
+      });
+
+      renderer.setPixelRatio(
+        Math.min(window.devicePixelRatio, 2)
+      );
+
+      renderer.outputColorSpace =
+        THREE.SRGBColorSpace;
+
+      renderer.toneMapping =
+        THREE.ACESFilmicToneMapping;
+
+      renderer.toneMappingExposure =
+        1.1;
+
+      controls = new OrbitControls(
+        camera,
+        renderer.domElement
+      );
+
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.08;
+
+      controls.enableRotate = true;
+      controls.enableZoom = true;
+      controls.enablePan = true;
+
+      /*
+        General lighting for GLB files that contain
+        standard PBR materials.
+      */
+      const hemisphereLight =
+        new THREE.HemisphereLight(
+          0xffffff,
+          0x202020,
+          2.2
+        );
+
+      scene.add(hemisphereLight);
+
+      const frontLight =
+        new THREE.DirectionalLight(
+          0xffffff,
+          3
+        );
+
+      frontLight.position.set(
+        3,
+        4,
+        5
+      );
+
+      scene.add(frontLight);
+
+      const sideLight =
+        new THREE.DirectionalLight(
+          0x88ccff,
+          1.8
+        );
+
+      sideLight.position.set(
+        -4,
+        2,
+        2
+      );
+
+      scene.add(sideLight);
+
+      const rearLight =
+        new THREE.DirectionalLight(
+          0xffffff,
+          1.4
+        );
+
+      rearLight.position.set(
+        0,
+        -3,
+        -5
+      );
+
+      scene.add(rearLight);
+
+      resizeLesionViewer();
+      animate();
+    }
+
+    /**
+     * Remove the previously loaded NIfTI volume.
+     */
+    async function clearNiftiVolumes() {
+      if (!nv) {
+        return;
+      }
+
+      while (nv.volumes.length > 0) {
+        await nv.removeVolume(
+          nv.volumes[0]
+        );
+      }
+    }
+
+    /**
+     * Load the user's NIfTI MRI file.
+     */
+    async function loadNiftiFile(file) {
+      if (!file || !nv) {
+        return;
+      }
+
+      mriLoaded = false;
+      generateButton.disabled = true;
+
+      status.textContent =
+        `Loading MRI: ${file.name} ` +
+        `(${formatFileSize(file.size)})`;
 
       try {
-        if (currentObjectUrl) {
-          URL.revokeObjectURL(currentObjectUrl);
-          currentObjectUrl = null;
+        await clearNiftiVolumes();
+
+        if (niftiObjectUrl) {
+          URL.revokeObjectURL(
+            niftiObjectUrl
+          );
+
+          niftiObjectUrl = null;
         }
 
-        while (nv.volumes.length > 0) {
-          await nv.removeVolume(nv.volumes[0]);
-        }
-
-        currentObjectUrl = URL.createObjectURL(file);
+        niftiObjectUrl =
+          URL.createObjectURL(file);
 
         await nv.loadVolumes([
           {
-            url: currentObjectUrl,
+            url: niftiObjectUrl,
             name: file.name,
             colormap: "gray",
-
-            // 단면은 보이고, 3D는 약간 반투명하게 보이는 느낌
-            opacity: 0.55,
+            opacity: 1,
             visible: true
           }
         ]);
 
-        nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
-        nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+        nv.setSliceType(
+          SLICE_TYPE.MULTIPLANAR
+        );
 
-        nv.opts.multiplanarShowRender = SHOW_RENDER.ALWAYS;
-        nv.opts.multiplanarEqualSize = true;
+        nv.setMultiplanarLayout(
+          MULTIPLANAR_TYPE.GRID
+        );
 
-        // 전체 volume 투명도
-        nv.setOpacity(0, 0.55);
+        nv.opts.multiplanarShowRender =
+          SHOW_RENDER.ALWAYS;
 
-        // 3D volume render 갱신
-        nv.updateGLVolume();
+        nv.opts.multiplanarEqualSize =
+          true;
+
+        nv.setOpacity(0, 1);
+
         nv.drawScene();
 
-        status.innerText = "분석 성공: " + file.name;
-      } catch (err) {
-        console.error(err);
+        mriLoaded = true;
+        generateButton.disabled = false;
+
+        /*
+          If another MRI is uploaded, return the 3D area
+          to its initial empty state.
+        */
+        removeExistingLesionModel();
+
+        lesionPlaceholder.style.display =
+          "flex";
+
+        generateButton.textContent =
+          "Generate 3D";
+
+        status.textContent =
+          `MRI loaded successfully: ${file.name}`;
+      } catch (error) {
+        console.error(
+          "MRI loading error:",
+          error
+        );
+
+        mriLoaded = false;
+        generateButton.disabled = true;
+
         status.innerHTML =
-          `<span style="color:red">분석 실패: ${err.message}</span>`;
+          `<span style="color:#f87171">
+            MRI loading failed: ${escapeHtml(error.message)}
+          </span>`;
       }
     }
 
-    fileInput.addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      await loadNiftiFile(file);
-    });
+    /**
+     * Simulate MRI segmentation and 3D generation,
+     * then display the pre-generated patient07.glb file.
+     */
+    async function generate3DLesion() {
+      if (!mriLoaded) {
+        status.textContent =
+          "Upload an MRI file first.";
 
-    window.addEventListener("load", init);
+        return;
+      }
+
+      generateButton.disabled = true;
+      generateButton.textContent =
+        "Generating...";
+
+      status.textContent =
+        "Analyzing MRI and generating 3D lesion model...";
+
+      /*
+        A brief delay makes the demonstration flow feel
+        like an analysis process.
+
+        It does not perform real AI segmentation.
+      */
+      await delay(900);
+
+      removeExistingLesionModel();
+
+      const loader =
+        new GLTFLoader();
+
+      loader.load(
+        GLB_FILE_PATH,
+
+        (gltf) => {
+          lesionModel =
+            gltf.scene;
+
+          lesionModel.traverse(
+            object => {
+              if (!object.isMesh) {
+                return;
+              }
+
+              object.castShadow = true;
+              object.receiveShadow = true;
+
+              const materials =
+                Array.isArray(object.material)
+                  ? object.material
+                  : [object.material];
+
+              materials.forEach(
+                material => {
+                  if (!material) {
+                    return;
+                  }
+
+                  material.side =
+                    THREE.DoubleSide;
+
+                  material.needsUpdate =
+                    true;
+                }
+              );
+            }
+          );
+
+          scene.add(lesionModel);
+
+          fitCameraToObject(
+            lesionModel
+          );
+
+          lesionPlaceholder.style.display =
+            "none";
+
+          generateButton.disabled = false;
+          generateButton.textContent =
+            "Generate 3D";
+
+          status.textContent =
+            "3D lesion model generated successfully.";
+        },
+
+        progressEvent => {
+          if (
+            !progressEvent.total ||
+            progressEvent.total <= 0
+          ) {
+            return;
+          }
+
+          const percent =
+            Math.round(
+              progressEvent.loaded /
+              progressEvent.total *
+              100
+            );
+
+          status.textContent =
+            `Generating 3D lesion model: ${percent}%`;
+        },
+
+        error => {
+          console.error(
+            "GLB loading error:",
+            error
+          );
+
+          generateButton.disabled = false;
+          generateButton.textContent =
+            "Generate 3D";
+
+          lesionPlaceholder.style.display =
+            "flex";
+
+          status.innerHTML =
+            `<span style="color:#f87171">
+              3D generation failed. Check that patient07.glb is in the same folder as index.html.
+            </span>`;
+        }
+      );
+    }
+
+    /**
+     * Remove the existing GLB model and release its resources.
+     */
+    function removeExistingLesionModel() {
+      if (!lesionModel || !scene) {
+        return;
+      }
+
+      scene.remove(
+        lesionModel
+      );
+
+      lesionModel.traverse(
+        object => {
+          if (!object.isMesh) {
+            return;
+          }
+
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
+
+          const materials =
+            Array.isArray(object.material)
+              ? object.material
+              : [object.material];
+
+          materials.forEach(
+            material => {
+              if (!material) {
+                return;
+              }
+
+              if (material.map) {
+                material.map.dispose();
+              }
+
+              if (material.normalMap) {
+                material.normalMap.dispose();
+              }
+
+              if (material.roughnessMap) {
+                material.roughnessMap.dispose();
+              }
+
+              if (material.metalnessMap) {
+                material.metalnessMap.dispose();
+              }
+
+              material.dispose();
+            }
+          );
+        }
+      );
+
+      lesionModel = null;
+    }
+
+    /**
+     * Center the GLB model and position the camera
+     * so that the complete model is visible.
+     */
+    function fitCameraToObject(object) {
+      const initialBox =
+        new THREE.Box3().setFromObject(
+          object
+        );
+
+      const initialCenter =
+        initialBox.getCenter(
+          new THREE.Vector3()
+        );
+
+      /*
+        Move the model center to the Three.js origin.
+      */
+      object.position.x -= initialCenter.x;
+      object.position.y -= initialCenter.y;
+      object.position.z -= initialCenter.z;
+
+      const box =
+        new THREE.Box3().setFromObject(
+          object
+        );
+
+      const size =
+        box.getSize(
+          new THREE.Vector3()
+        );
+
+      const maxDimension =
+        Math.max(
+          size.x,
+          size.y,
+          size.z
+        );
+
+      if (
+        !Number.isFinite(maxDimension) ||
+        maxDimension <= 0
+      ) {
+        camera.position.set(
+          0,
+          0,
+          5
+        );
+
+        controls.target.set(
+          0,
+          0,
+          0
+        );
+
+        controls.update();
+
+        return;
+      }
+
+      const verticalFov =
+        THREE.MathUtils.degToRad(
+          camera.fov
+        );
+
+      const horizontalFov =
+        2 *
+        Math.atan(
+          Math.tan(verticalFov / 2) *
+          camera.aspect
+        );
+
+      const distanceForHeight =
+        size.y /
+        (
+          2 *
+          Math.tan(verticalFov / 2)
+        );
+
+      const distanceForWidth =
+        size.x /
+        (
+          2 *
+          Math.tan(horizontalFov / 2)
+        );
+
+      const distance =
+        Math.max(
+          distanceForHeight,
+          distanceForWidth,
+          maxDimension
+        ) * 1.35;
+
+      camera.position.set(
+        distance * 0.45,
+        distance * 0.25,
+        distance
+      );
+
+      camera.near =
+        Math.max(
+          distance / 1000,
+          0.0001
+        );
+
+      camera.far =
+        distance * 100;
+
+      camera.updateProjectionMatrix();
+
+      controls.target.set(
+        0,
+        0,
+        0
+      );
+
+      controls.minDistance =
+        distance * 0.05;
+
+      controls.maxDistance =
+        distance * 10;
+
+      controls.update();
+    }
+
+    /**
+     * Resize the Three.js lower-right viewer.
+     */
+    function resizeLesionViewer() {
+      if (
+        !renderer ||
+        !camera ||
+        !lesionPanel
+      ) {
+        return;
+      }
+
+      const width =
+        lesionPanel.clientWidth;
+
+      const height =
+        lesionPanel.clientHeight;
+
+      if (
+        width <= 0 ||
+        height <= 0
+      ) {
+        return;
+      }
+
+      renderer.setSize(
+        width,
+        height,
+        false
+      );
+
+      camera.aspect =
+        width / height;
+
+      camera.updateProjectionMatrix();
+    }
+
+    /**
+     * Resize the Niivue viewer.
+     */
+    function resizeNiftiViewer() {
+      if (!nv) {
+        return;
+      }
+
+      nv.resizeListener();
+      nv.drawScene();
+    }
+
+    /**
+     * Three.js rendering loop.
+     */
+    function animate() {
+      requestAnimationFrame(
+        animate
+      );
+
+      if (controls) {
+        controls.update();
+      }
+
+      if (
+        renderer &&
+        scene &&
+        camera
+      ) {
+        renderer.render(
+          scene,
+          camera
+        );
+      }
+    }
+
+    function formatFileSize(bytes) {
+      const megabytes =
+        bytes / 1024 / 1024;
+
+      return `${megabytes.toFixed(1)} MB`;
+    }
+
+    function delay(milliseconds) {
+      return new Promise(
+        resolve => {
+          window.setTimeout(
+            resolve,
+            milliseconds
+          );
+        }
+      );
+    }
+
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    /*
+      NIfTI upload event.
+    */
+    niftiInput.addEventListener(
+      "change",
+      async event => {
+        const file =
+          event.target.files[0];
+
+        if (!file) {
+          return;
+        }
+
+        await loadNiftiFile(
+          file
+        );
+
+        /*
+          Reset the file input so the same file
+          can be selected again later.
+        */
+        event.target.value = "";
+      }
+    );
+
+    /*
+      Generate 3D button event.
+    */
+    generateButton.addEventListener(
+      "click",
+      generate3DLesion
+    );
+
+    /*
+      Browser window resize event.
+    */
+    window.addEventListener(
+      "resize",
+      () => {
+        resizeNiftiViewer();
+        resizeLesionViewer();
+      }
+    );
+
+    /*
+      Release the temporary NIfTI object URL
+      before the page closes.
+    */
+    window.addEventListener(
+      "beforeunload",
+      () => {
+        if (niftiObjectUrl) {
+          URL.revokeObjectURL(
+            niftiObjectUrl
+          );
+        }
+
+        removeExistingLesionModel();
+      }
+    );
+
+    /*
+      Initialize both viewers.
+    */
+    window.addEventListener(
+      "load",
+      async () => {
+        initializeLesionViewer();
+        await initializeNiftiViewer();
+      }
+    );
   </script>
 </body>
 </html>
