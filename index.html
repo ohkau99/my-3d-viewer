@@ -1,329 +1,287 @@
-    /*
-      가상의 Brain Function Atlas 생성
-    */
-    function createFunctionAtlas(model) {
-      removeFunctionAtlas();
+function createFunctionAtlas(model) {
+  removeFunctionAtlas();
 
-      const box =
-        new THREE.Box3().setFromObject(
-          model
-        );
+  const box =
+    new THREE.Box3().setFromObject(
+      model
+    );
 
-      const size =
-        box.getSize(
-          new THREE.Vector3()
-        );
+  const size =
+    box.getSize(
+      new THREE.Vector3()
+    );
 
-      const center =
-        box.getCenter(
-          new THREE.Vector3()
-        );
+  const center =
+    box.getCenter(
+      new THREE.Vector3()
+    );
 
-      functionAtlasGroup =
+  functionAtlasGroup =
+    new THREE.Group();
+
+  functionAtlasGroup.name =
+    "BrainFunctionAtlas";
+
+  const atlasRegions = [
+    {
+      name: "Motor Cortex",
+      color: 0x22d3ee,
+
+      position: [
+        0.00,
+        0.10,
+        0.03
+      ],
+
+      scale: [
+        0.08,
+        0.10,
+        0.05
+      ],
+
+      labelOffset: [
+        0.00,
+        0.26,
+        0.02
+      ]
+    },
+
+    {
+      name: "Sensory Cortex",
+      color: 0x4ade80,
+
+      position: [
+        0.00,
+        0.00,
+        0.05
+      ],
+
+      scale: [
+        0.08,
+        0.11,
+        0.05
+      ],
+
+      labelOffset: [
+        0.00,
+        0.02,
+        0.20
+      ]
+    },
+
+    {
+      name: "Language Area",
+      color: 0xfacc15,
+
+      position: [
+        0.14,
+        -0.04,
+        0.05
+      ],
+
+      scale: [
+        0.08,
+        0.08,
+        0.05
+      ],
+
+      labelOffset: [
+        0.24,
+        -0.12,
+        0.02
+      ]
+    },
+
+    {
+      name: "Visual Cortex",
+      color: 0xc084fc,
+
+      position: [
+        -0.14,
+        -0.04,
+        -0.03
+      ],
+
+      scale: [
+        0.08,
+        0.08,
+        0.05
+      ],
+
+      labelOffset: [
+        -0.24,
+        -0.12,
+        0.02
+      ]
+    }
+  ];
+
+  atlasRegions.forEach(
+    region => {
+      const regionGroup =
         new THREE.Group();
 
-      functionAtlasGroup.name =
-        "BrainFunctionAtlas";
+      const geometry =
+        new THREE.SphereGeometry(
+          1,
+          48,
+          32
+        );
 
-      /*
-        position:
-        뇌 중심을 기준으로 한 상대 위치
+      const material =
+        new THREE.MeshPhysicalMaterial({
+          color: region.color,
+          transparent: true,
+          opacity: 0,
+          roughness: 0.25,
+          metalness: 0,
+          transmission: 0.05,
+          emissive: region.color,
+          emissiveIntensity: 0.12,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide
+        });
 
-        scale:
-        뇌 전체 크기에 대한 상대 크기
+      material.userData.baseOpacity =
+        0.18;
 
-        영역이 뇌 외곽으로 튀어나가지 않도록
-        위치와 크기를 줄인 값이다.
-      */
-      const atlasRegions = [
-        {
-          name: "Motor Cortex",
-          color: 0x22d3ee,
+      const mesh =
+        new THREE.Mesh(
+          geometry,
+          material
+        );
 
-          position: [
-            0.02,
-            0.18,
-            0.06
-          ],
+      mesh.position.set(
+        center.x +
+          region.position[0] *
+          size.x,
 
-          scale: [
-            0.12,
-            0.15,
-            0.09
-          ],
+        center.y +
+          region.position[1] *
+          size.y,
 
-          labelOffset: [
-            0.00,
-            0.31,
-            0.02
-          ]
-        },
-        {
-          name: "Sensory Cortex",
-          color: 0x4ade80,
-
-          position: [
-            0.03,
-            0.00,
-            0.07
-          ],
-
-          scale: [
-            0.11,
-            0.16,
-            0.085
-          ],
-
-          labelOffset: [
-            0.00,
-            0.04,
-            0.22
-          ]
-        },
-        {
-          name: "Language Area",
-          color: 0xfacc15,
-
-          position: [
-            0.18,
-            -0.07,
-            0.06
-          ],
-
-          scale: [
-            0.11,
-            0.10,
-            0.085
-          ],
-
-          labelOffset: [
-            0.31,
-            -0.13,
-            0.03
-          ]
-        },
-        {
-          name: "Visual Cortex",
-          color: 0xc084fc,
-
-          position: [
-            -0.18,
-            -0.07,
-            -0.04
-          ],
-
-          scale: [
-            0.12,
-            0.11,
-            0.085
-          ],
-
-          labelOffset: [
-            -0.31,
-            -0.14,
-            0.02
-          ]
-        }
-      ];
-
-      atlasRegions.forEach(
-        region => {
-          const regionGroup =
-            new THREE.Group();
-
-          regionGroup.name =
-            region.name;
-
-          /*
-            반지름 1인 기본 구체를 만든 후
-            실제 뇌의 X, Y, Z 크기에 따라
-            각각 다른 비율로 확대한다.
-          */
-          const geometry =
-            new THREE.SphereGeometry(
-              1,
-              64,
-              40
-            );
-
-          const material =
-            new THREE.MeshPhysicalMaterial({
-              color: region.color,
-              transparent: true,
-              opacity: 0,
-              roughness: 0.25,
-              metalness: 0,
-              transmission: 0.08,
-              emissive: region.color,
-              emissiveIntensity: 0.16,
-              depthWrite: false,
-              depthTest: true,
-              side: THREE.DoubleSide
-            });
-
-          material.userData.baseOpacity =
-            ATLAS_TARGET_OPACITY;
-
-          const mesh =
-            new THREE.Mesh(
-              geometry,
-              material
-            );
-
-          /*
-            각 축의 실제 크기를 기준으로
-            기능 영역의 위치를 계산한다.
-          */
-          mesh.position.set(
-            center.x +
-              region.position[0] *
-              size.x,
-
-            center.y +
-              region.position[1] *
-              size.y,
-
-            center.z +
-              region.position[2] *
-              size.z
-          );
-
-          /*
-            기능 영역 크기도 X, Y, Z축에
-            각각 다른 비율을 적용한다.
-          */
-          mesh.scale.set(
-            region.scale[0] *
-              size.x,
-
-            region.scale[1] *
-              size.y,
-
-            region.scale[2] *
-              size.z
-          );
-
-          mesh.renderOrder = 20;
-
-          atlasRegionMaterials.push(
-            material
-          );
-
-          regionGroup.add(
-            mesh
-          );
-
-          /*
-            기능 영역 외곽선
-          */
-          const edgeGeometry =
-            new THREE.SphereGeometry(
-              1,
-              32,
-              20
-            );
-
-          const edgeMaterial =
-            new THREE.MeshBasicMaterial({
-              color: region.color,
-              transparent: true,
-              opacity: 0,
-              wireframe: true,
-              depthWrite: false,
-              depthTest: true,
-              side: THREE.DoubleSide
-            });
-
-          edgeMaterial.userData.baseOpacity =
-            0.06;
-
-          const edgeMesh =
-            new THREE.Mesh(
-              edgeGeometry,
-              edgeMaterial
-            );
-
-          edgeMesh.position.copy(
-            mesh.position
-          );
-
-          edgeMesh.scale.copy(
-            mesh.scale
-          );
-
-          edgeMesh.scale.multiplyScalar(
-            1.015
-          );
-
-          edgeMesh.renderOrder = 21;
-
-          atlasRegionMaterials.push(
-            edgeMaterial
-          );
-
-          regionGroup.add(
-            edgeMesh
-          );
-
-          /*
-            영문 라벨은 기능 영역과 달리
-            뇌 바깥쪽에 표시한다.
-          */
-          const labelBaseSize =
-            Math.max(
-              size.x,
-              size.y,
-              size.z
-            );
-
-          const label =
-            createTextLabel(
-              region.name,
-              region.color,
-              labelBaseSize
-            );
-
-          label.position.set(
-            center.x +
-              region.labelOffset[0] *
-              size.x,
-
-            center.y +
-              region.labelOffset[1] *
-              size.y,
-
-            center.z +
-              region.labelOffset[2] *
-              size.z
-          );
-
-          label.renderOrder = 30;
-
-          regionGroup.add(
-            label
-          );
-
-          functionAtlasGroup.add(
-            regionGroup
-          );
-        }
+        center.z +
+          region.position[2] *
+          size.z
       );
 
-      functionAtlasGroup.visible =
-        false;
+      mesh.scale.set(
+        region.scale[0] *
+          size.x,
 
-      atlasVisible = false;
-      atlasFadeValue = 0;
-      atlasFadeTarget = 0;
+        region.scale[1] *
+          size.y,
 
-      atlasButton.classList.remove(
-        "active"
+        region.scale[2] *
+          size.z
       );
 
-      atlasButton.textContent =
-        "Brain Function Map";
+      atlasRegionMaterials.push(
+        material
+      );
 
-      scene.add(
-        functionAtlasGroup
+      regionGroup.add(
+        mesh
+      );
+
+      const edgeGeometry =
+        new THREE.SphereGeometry(
+          1,
+          24,
+          16
+        );
+
+      const edgeMaterial =
+        new THREE.MeshBasicMaterial({
+          color: region.color,
+          transparent: true,
+          opacity: 0,
+          wireframe: true,
+          depthWrite: false,
+          depthTest: true,
+          side: THREE.DoubleSide
+        });
+
+      edgeMaterial.userData.baseOpacity =
+        0.03;
+
+      const edgeMesh =
+        new THREE.Mesh(
+          edgeGeometry,
+          edgeMaterial
+        );
+
+      edgeMesh.position.copy(
+        mesh.position
+      );
+
+      edgeMesh.scale.copy(
+        mesh.scale
+      );
+
+      edgeMesh.scale.multiplyScalar(
+        1.01
+      );
+
+      atlasRegionMaterials.push(
+        edgeMaterial
+      );
+
+      regionGroup.add(
+        edgeMesh
+      );
+
+      const label =
+        createTextLabel(
+          region.name,
+          region.color,
+          Math.max(
+            size.x,
+            size.y,
+            size.z
+          )
+        );
+
+      label.position.set(
+        center.x +
+          region.labelOffset[0] *
+          size.x,
+
+        center.y +
+          region.labelOffset[1] *
+          size.y,
+
+        center.z +
+          region.labelOffset[2] *
+          size.z
+      );
+
+      regionGroup.add(
+        label
+      );
+
+      functionAtlasGroup.add(
+        regionGroup
       );
     }
+  );
+
+  functionAtlasGroup.visible =
+    false;
+
+  atlasVisible = false;
+  atlasFadeValue = 0;
+  atlasFadeTarget = 0;
+
+  atlasButton.classList.remove(
+    "active"
+  );
+
+  atlasButton.textContent =
+    "Brain Function Map";
+
+  scene.add(
+    functionAtlasGroup
+  );
+}
