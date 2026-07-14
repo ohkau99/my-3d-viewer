@@ -40,13 +40,14 @@
       flex-direction: column;
     }
 
+    /* 상단 도구 영역 */
     #toolbar {
-      height: 64px;
+      min-height: 64px;
       flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 0 20px;
+      padding: 10px 20px;
       background: #111827;
       border-bottom: 1px solid #273244;
     }
@@ -57,6 +58,7 @@
       font-size: 20px;
       font-weight: 800;
       letter-spacing: -0.5px;
+      white-space: nowrap;
     }
 
     .button {
@@ -68,10 +70,15 @@
       color: #001018;
       font-size: 14px;
       font-weight: 700;
+      white-space: nowrap;
       cursor: pointer;
+      transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
     }
 
-    .button:hover {
+    .button:hover:not(:disabled) {
       background: #22d3ee;
     }
 
@@ -82,6 +89,12 @@
       cursor: default;
     }
 
+    #atlas-button.active {
+      border-color: #facc15;
+      background: #facc15;
+      color: #1f1600;
+    }
+
     #file-input {
       display: none;
     }
@@ -90,8 +103,10 @@
       margin-left: auto;
       color: #a5f3fc;
       font-size: 13px;
+      white-space: nowrap;
     }
 
+    /* 전체 뷰어 */
     #viewer-area {
       position: relative;
       flex: 1;
@@ -110,7 +125,8 @@
     }
 
     /*
-      Niivue 2×2 화면의 오른쪽 아래 영역
+      Niivue 2×2 화면의 오른쪽 아래 영역을
+      Three.js 뷰어로 덮는다.
     */
     #lesion-panel {
       position: absolute;
@@ -137,6 +153,7 @@
       height: 100%;
       visibility: hidden;
       background: #000000;
+      touch-action: none;
     }
 
     #lesion-panel.model-loaded #three-canvas {
@@ -144,7 +161,7 @@
     }
 
     /*
-      팝업으로 캔버스가 이동한 뒤에도 보이게 한다.
+      팝업으로 캔버스가 이동한 경우
     */
     #popup.active #three-canvas {
       position: absolute;
@@ -223,8 +240,8 @@
       position: relative;
       width: 92vw;
       height: 88vh;
-      max-width: 1300px;
-      max-height: 900px;
+      max-width: 1400px;
+      max-height: 920px;
       overflow: hidden;
       background: #000000;
       border: 1px solid #374151;
@@ -260,10 +277,8 @@
       background: #374151;
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 900px) {
       #toolbar {
-        height: auto;
-        min-height: 64px;
         flex-wrap: wrap;
         padding: 10px;
       }
@@ -275,6 +290,11 @@
       #status {
         width: 100%;
         margin-left: 0;
+      }
+
+      .button {
+        padding: 0 12px;
+        font-size: 13px;
       }
     }
   </style>
@@ -306,6 +326,15 @@
       disabled
     >
       Generate 3D
+    </button>
+
+    <button
+      id="atlas-button"
+      class="button"
+      type="button"
+      disabled
+    >
+      Brain Function Map
     </button>
 
     <div id="status">
@@ -359,14 +388,29 @@
       GLTFLoader
     } from "three/addons/loaders/GLTFLoader.js";
 
+    /*
+      같은 폴더에 있는 GLB 파일
+    */
     const GLB_FILE_PATH = "./patient07.glb";
+
+    /*
+      진행 바 시간: 10초
+    */
     const PROGRESS_DURATION = 10000;
+
+    /*
+      Atlas의 최종 투명도
+    */
+    const ATLAS_TARGET_OPACITY = 0.30;
 
     const fileInput =
       document.getElementById("file-input");
 
     const generateButton =
       document.getElementById("generate-button");
+
+    const atlasButton =
+      document.getElementById("atlas-button");
 
     const status =
       document.getElementById("status");
@@ -403,52 +447,17 @@
     let lesionModel = null;
 
     /*
-      Niivue 초기화
+      Brain Function Atlas 관련 변수
     */
-    async function initializeNiivue() {
-      try {
-        nv = new Niivue({
-          backColor: [0, 0, 0, 1],
-          isColorbar: false,
-          dragAndDropEnabled: false,
-          multiplanarLayout: MULTIPLANAR_TYPE.GRID,
-          multiplanarShowRender: SHOW_RENDER.NEVER,
-          multiplanarEqualSize: true
-        });
-
-        await nv.attachTo("niivue-canvas");
-
-        nv.setSliceType(
-          SLICE_TYPE.MULTIPLANAR
-        );
-
-        nv.setMultiplanarLayout(
-          MULTIPLANAR_TYPE.GRID
-        );
-
-        nv.opts.multiplanarShowRender =
-          SHOW_RENDER.NEVER;
-
-        nv.opts.multiplanarEqualSize =
-          true;
-
-        nv.drawScene();
-
-        status.textContent =
-          "Upload an MRI file.";
-      } catch (error) {
-        console.error(
-          "Niivue initialization error:",
-          error
-        );
-
-        status.textContent =
-          "Viewer initialization failed.";
-      }
-    }
+    let functionAtlasGroup = null;
+    let atlasVisible = false;
+    let atlasFadeValue = 0;
+    let atlasFadeTarget = 0;
+    let atlasRegionMaterials = [];
+    let atlasLabelMaterials = [];
 
     /*
-      Three.js 초기화
+      Three.js 기본 설정
     */
     const renderer =
       new THREE.WebGLRenderer({
@@ -511,6 +520,9 @@
     controls.rotateSpeed = 0.7;
     controls.zoomSpeed = 0.8;
 
+    /*
+      조명
+    */
     scene.add(
       new THREE.AmbientLight(
         0xffffff,
@@ -530,9 +542,7 @@
       8
     );
 
-    scene.add(
-      light1
-    );
+    scene.add(light1);
 
     const light2 =
       new THREE.DirectionalLight(
@@ -546,9 +556,7 @@
       4
     );
 
-    scene.add(
-      light2
-    );
+    scene.add(light2);
 
     const light3 =
       new THREE.DirectionalLight(
@@ -562,9 +570,54 @@
       -5
     );
 
-    scene.add(
-      light3
-    );
+    scene.add(light3);
+
+    /*
+      Niivue 초기화
+    */
+    async function initializeNiivue() {
+      try {
+        nv = new Niivue({
+          backColor: [0, 0, 0, 1],
+          isColorbar: false,
+          dragAndDropEnabled: false,
+          multiplanarLayout: MULTIPLANAR_TYPE.GRID,
+          multiplanarShowRender: SHOW_RENDER.NEVER,
+          multiplanarEqualSize: true
+        });
+
+        await nv.attachTo(
+          "niivue-canvas"
+        );
+
+        nv.setSliceType(
+          SLICE_TYPE.MULTIPLANAR
+        );
+
+        nv.setMultiplanarLayout(
+          MULTIPLANAR_TYPE.GRID
+        );
+
+        nv.opts.multiplanarShowRender =
+          SHOW_RENDER.NEVER;
+
+        nv.opts.multiplanarEqualSize =
+          true;
+
+        nv.drawScene();
+
+        status.textContent =
+          "Upload an MRI file.";
+      } catch (error) {
+        console.error(
+          "Niivue initialization error:",
+          error
+        );
+
+        status.textContent =
+          "Viewer initialization failed.";
+      }
+    }
 
     /*
       MRI 업로드
@@ -586,8 +639,8 @@
         status.textContent =
           "Loading MRI...";
 
-        generateButton.disabled =
-          true;
+        generateButton.disabled = true;
+        atlasButton.disabled = true;
 
         removeExistingModel();
 
@@ -639,9 +692,7 @@
           nv.drawScene();
 
           mriLoaded = true;
-
-          generateButton.disabled =
-            false;
+          generateButton.disabled = false;
 
           status.textContent =
             "MRI loaded.";
@@ -652,9 +703,8 @@
           );
 
           mriLoaded = false;
-
-          generateButton.disabled =
-            true;
+          generateButton.disabled = true;
+          atlasButton.disabled = true;
 
           status.textContent =
             "MRI loading failed.";
@@ -663,7 +713,7 @@
     );
 
     /*
-      Generate 3D 클릭
+      Generate 3D 버튼
     */
     generateButton.addEventListener(
       "click",
@@ -678,13 +728,12 @@
         isProcessing = true;
         modelLoaded = false;
 
-        generateButton.disabled =
-          true;
+        generateButton.disabled = true;
+        atlasButton.disabled = true;
 
         removeExistingModel();
 
-        progressBar.style.width =
-          "0%";
+        progressBar.style.width = "0%";
 
         progressOverlay.classList.add(
           "active"
@@ -694,19 +743,17 @@
           "Processing MRI...";
 
         try {
-          const [
-            gltf
-          ] = await Promise.all([
-            loadGlbModel(
-              GLB_FILE_PATH
-            ),
-            runProgressAnimation(
-              PROGRESS_DURATION
-            )
-          ]);
+          const [gltf] =
+            await Promise.all([
+              loadGlbModel(
+                GLB_FILE_PATH
+              ),
+              runProgressAnimation(
+                PROGRESS_DURATION
+              )
+            ]);
 
-          lesionModel =
-            gltf.scene;
+          lesionModel = gltf.scene;
 
           prepareModel(
             lesionModel
@@ -716,7 +763,18 @@
             lesionModel
           );
 
+          /*
+            먼저 GLB를 화면 중앙에 맞춘다.
+          */
           fitCameraToObject(
+            lesionModel
+          );
+
+          /*
+            중앙 정렬된 GLB를 기준으로
+            가상 기능영역을 생성한다.
+          */
+          createFunctionAtlas(
             lesionModel
           );
 
@@ -730,8 +788,9 @@
             "active"
           );
 
-          progressBar.style.width =
-            "0%";
+          progressBar.style.width = "0%";
+
+          atlasButton.disabled = false;
 
           status.textContent =
             "3D model generated.";
@@ -747,8 +806,9 @@
             "active"
           );
 
-          progressBar.style.width =
-            "0%";
+          progressBar.style.width = "0%";
+
+          atlasButton.disabled = true;
 
           status.textContent =
             "3D generation failed. Check patient07.glb.";
@@ -756,13 +816,61 @@
           isProcessing = false;
 
           generateButton.disabled =
-            false;
+            !mriLoaded;
         }
       }
     );
 
     /*
-      GLB 파일 불러오기
+      Brain Function Map 버튼
+    */
+    atlasButton.addEventListener(
+      "click",
+      () => {
+        if (
+          !modelLoaded ||
+          !functionAtlasGroup ||
+          isProcessing
+        ) {
+          return;
+        }
+
+        atlasVisible =
+          !atlasVisible;
+
+        if (atlasVisible) {
+          functionAtlasGroup.visible =
+            true;
+
+          atlasFadeTarget = 1;
+
+          atlasButton.classList.add(
+            "active"
+          );
+
+          atlasButton.textContent =
+            "Hide Function Map";
+
+          status.textContent =
+            "Brain function map displayed.";
+        } else {
+          atlasFadeTarget = 0;
+
+          atlasButton.classList.remove(
+            "active"
+          );
+
+          atlasButton.textContent =
+            "Brain Function Map";
+
+          status.textContent =
+            "Brain function map hidden.";
+        }
+      }
+    );
+
+    /*
+      GLB 불러오기
     */
     function loadGlbModel(path) {
       return new Promise(
@@ -840,7 +948,7 @@
     }
 
     /*
-      3D 모델 재질 설정
+      GLB 재질 설정
     */
     function prepareModel(model) {
       model.traverse(
@@ -877,7 +985,8 @@
     }
 
     /*
-      모델 크기에 맞게 카메라 위치 조절
+      카메라를 GLB 크기에 맞춘다.
+      GLB 중심도 원점으로 이동한다.
     */
     function fitCameraToObject(object) {
       const box =
@@ -938,7 +1047,7 @@
           )
         );
 
-      distance *= 1.6;
+      distance *= 1.65;
 
       camera.position.set(
         distance * 0.45,
@@ -973,10 +1082,572 @@
     }
 
     /*
-      기존 3D 모델 제거
+      가상의 Brain Function Atlas 생성
+    */
+    function createFunctionAtlas(model) {
+      removeFunctionAtlas();
+
+      /*
+        모델이 중앙으로 이동된 이후의 크기를 계산한다.
+      */
+      const box =
+        new THREE.Box3().setFromObject(
+          model
+        );
+
+      const size =
+        box.getSize(
+          new THREE.Vector3()
+        );
+
+      const center =
+        box.getCenter(
+          new THREE.Vector3()
+        );
+
+      const baseSize =
+        Math.max(
+          size.x,
+          size.y,
+          size.z
+        );
+
+      functionAtlasGroup =
+        new THREE.Group();
+
+      functionAtlasGroup.name =
+        "BrainFunctionAtlas";
+
+      /*
+        위치와 크기는 실제 정합 좌표가 아닌
+        시연용 상대 좌표이다.
+
+        position:
+        GLB 중심으로부터의 상대 위치
+
+        scale:
+        각각의 타원체 크기
+      */
+      const atlasRegions = [
+        {
+          name: "Motor Cortex",
+          color: 0x22d3ee,
+          position: [-0.23, 0.28, 0.14],
+          scale: [0.20, 0.32, 0.095],
+          labelOffset: [-0.02, 0.23, 0.03]
+        },
+        {
+          name: "Sensory Cortex",
+          color: 0x4ade80,
+          position: [0.12, 0.29, 0.10],
+          scale: [0.18, 0.30, 0.09],
+          labelOffset: [0.08, 0.22, 0.02]
+        },
+        {
+          name: "Language Area",
+          color: 0xfacc15,
+          position: [-0.33, -0.03, 0.22],
+          scale: [0.23, 0.16, 0.085],
+          labelOffset: [-0.09, -0.19, 0.03]
+        },
+        {
+          name: "Visual Cortex",
+          color: 0xc084fc,
+          position: [0.02, 0.00, -0.34],
+          scale: [0.29, 0.19, 0.09],
+          labelOffset: [0.00, -0.22, -0.02]
+        }
+      ];
+
+      atlasRegions.forEach(
+        region => {
+          const regionGroup =
+            new THREE.Group();
+
+          regionGroup.name =
+            region.name;
+
+          /*
+            반투명 기능 영역
+          */
+          const geometry =
+            new THREE.SphereGeometry(
+              baseSize,
+              64,
+              40
+            );
+
+          const material =
+            new THREE.MeshPhysicalMaterial({
+              color: region.color,
+              transparent: true,
+              opacity: 0,
+              roughness: 0.25,
+              metalness: 0,
+              transmission: 0.08,
+              emissive: region.color,
+              emissiveIntensity: 0.16,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            });
+
+          material.userData.baseOpacity =
+            ATLAS_TARGET_OPACITY;
+
+          const mesh =
+            new THREE.Mesh(
+              geometry,
+              material
+            );
+
+          mesh.position.set(
+            center.x +
+              region.position[0] *
+              baseSize,
+
+            center.y +
+              region.position[1] *
+              baseSize,
+
+            center.z +
+              region.position[2] *
+              baseSize
+          );
+
+          mesh.scale.set(
+            region.scale[0],
+            region.scale[1],
+            region.scale[2]
+          );
+
+          mesh.renderOrder = 20;
+
+          atlasRegionMaterials.push(
+            material
+          );
+
+          regionGroup.add(mesh);
+
+          /*
+            기능영역 외곽선
+          */
+          const edgeGeometry =
+            new THREE.SphereGeometry(
+              baseSize * 1.012,
+              32,
+              20
+            );
+
+          const edgeMaterial =
+            new THREE.MeshBasicMaterial({
+              color: region.color,
+              transparent: true,
+              opacity: 0,
+              wireframe: true,
+              depthWrite: false,
+              side: THREE.DoubleSide
+            });
+
+          edgeMaterial.userData.baseOpacity =
+            0.13;
+
+          const edgeMesh =
+            new THREE.Mesh(
+              edgeGeometry,
+              edgeMaterial
+            );
+
+          edgeMesh.position.copy(
+            mesh.position
+          );
+
+          edgeMesh.scale.copy(
+            mesh.scale
+          );
+
+          edgeMesh.renderOrder = 21;
+
+          atlasRegionMaterials.push(
+            edgeMaterial
+          );
+
+          regionGroup.add(
+            edgeMesh
+          );
+
+          /*
+            영문 라벨
+          */
+          const label =
+            createTextLabel(
+              region.name,
+              region.color,
+              baseSize
+            );
+
+          label.position.set(
+            mesh.position.x +
+              region.labelOffset[0] *
+              baseSize,
+
+            mesh.position.y +
+              region.labelOffset[1] *
+              baseSize,
+
+            mesh.position.z +
+              region.labelOffset[2] *
+              baseSize
+          );
+
+          label.renderOrder = 30;
+
+          regionGroup.add(
+            label
+          );
+
+          functionAtlasGroup.add(
+            regionGroup
+          );
+        }
+      );
+
+      functionAtlasGroup.visible =
+        false;
+
+      atlasVisible = false;
+      atlasFadeValue = 0;
+      atlasFadeTarget = 0;
+
+      atlasButton.classList.remove(
+        "active"
+      );
+
+      atlasButton.textContent =
+        "Brain Function Map";
+
+      scene.add(
+        functionAtlasGroup
+      );
+    }
+
+    /*
+      Canvas를 이용해 Three.js Sprite 라벨 생성
+    */
+    function createTextLabel(
+      text,
+      color,
+      baseSize
+    ) {
+      const canvas =
+        document.createElement(
+          "canvas"
+        );
+
+      canvas.width = 640;
+      canvas.height = 160;
+
+      const context =
+        canvas.getContext(
+          "2d"
+        );
+
+      context.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+      /*
+        라벨 배경
+      */
+      context.fillStyle =
+        "rgba(4, 10, 20, 0.82)";
+
+      roundRect(
+        context,
+        8,
+        18,
+        624,
+        124,
+        28
+      );
+
+      context.fill();
+
+      /*
+        색상 테두리
+      */
+      context.strokeStyle =
+        `#${color
+          .toString(16)
+          .padStart(6, "0")}`;
+
+      context.lineWidth = 5;
+
+      roundRect(
+        context,
+        8,
+        18,
+        624,
+        124,
+        28
+      );
+
+      context.stroke();
+
+      /*
+        라벨 글씨
+      */
+      context.fillStyle =
+        "#ffffff";
+
+      context.font =
+        "bold 48px Arial";
+
+      context.textAlign =
+        "center";
+
+      context.textBaseline =
+        "middle";
+
+      context.fillText(
+        text,
+        canvas.width / 2,
+        canvas.height / 2 + 2
+      );
+
+      const texture =
+        new THREE.CanvasTexture(
+          canvas
+        );
+
+      texture.colorSpace =
+        THREE.SRGBColorSpace;
+
+      texture.needsUpdate =
+        true;
+
+      const material =
+        new THREE.SpriteMaterial({
+          map: texture,
+          transparent: true,
+          opacity: 0,
+          depthTest: false,
+          depthWrite: false
+        });
+
+      material.userData.baseOpacity =
+        0.95;
+
+      const sprite =
+        new THREE.Sprite(
+          material
+        );
+
+      const labelWidth =
+        baseSize * 0.48;
+
+      const labelHeight =
+        labelWidth * 0.25;
+
+      sprite.scale.set(
+        labelWidth,
+        labelHeight,
+        1
+      );
+
+      atlasLabelMaterials.push(
+        material
+      );
+
+      return sprite;
+    }
+
+    /*
+      Canvas 둥근 사각형
+    */
+    function roundRect(
+      context,
+      x,
+      y,
+      width,
+      height,
+      radius
+    ) {
+      context.beginPath();
+
+      context.moveTo(
+        x + radius,
+        y
+      );
+
+      context.lineTo(
+        x + width - radius,
+        y
+      );
+
+      context.quadraticCurveTo(
+        x + width,
+        y,
+        x + width,
+        y + radius
+      );
+
+      context.lineTo(
+        x + width,
+        y + height - radius
+      );
+
+      context.quadraticCurveTo(
+        x + width,
+        y + height,
+        x + width - radius,
+        y + height
+      );
+
+      context.lineTo(
+        x + radius,
+        y + height
+      );
+
+      context.quadraticCurveTo(
+        x,
+        y + height,
+        x,
+        y + height - radius
+      );
+
+      context.lineTo(
+        x,
+        y + radius
+      );
+
+      context.quadraticCurveTo(
+        x,
+        y,
+        x + radius,
+        y
+      );
+
+      context.closePath();
+    }
+
+    /*
+      Atlas 페이드 효과
+    */
+    function updateAtlasFade() {
+      if (!functionAtlasGroup) {
+        return;
+      }
+
+      const difference =
+        atlasFadeTarget -
+        atlasFadeValue;
+
+      if (
+        Math.abs(difference) <
+        0.003
+      ) {
+        atlasFadeValue =
+          atlasFadeTarget;
+      } else {
+        atlasFadeValue +=
+          difference * 0.075;
+      }
+
+      atlasRegionMaterials.forEach(
+        material => {
+          material.opacity =
+            material.userData.baseOpacity *
+            atlasFadeValue;
+        }
+      );
+
+      atlasLabelMaterials.forEach(
+        material => {
+          material.opacity =
+            material.userData.baseOpacity *
+            atlasFadeValue;
+        }
+      );
+
+      if (
+        atlasFadeValue <= 0.002 &&
+        atlasFadeTarget === 0
+      ) {
+        functionAtlasGroup.visible =
+          false;
+      }
+    }
+
+    /*
+      Atlas 제거 및 메모리 정리
+    */
+    function removeFunctionAtlas() {
+      if (!functionAtlasGroup) {
+        atlasRegionMaterials = [];
+        atlasLabelMaterials = [];
+        return;
+      }
+
+      scene.remove(
+        functionAtlasGroup
+      );
+
+      functionAtlasGroup.traverse(
+        object => {
+          if (object.geometry) {
+            object.geometry.dispose();
+          }
+
+          if (object.material) {
+            const materials =
+              Array.isArray(
+                object.material
+              )
+                ? object.material
+                : [object.material];
+
+            materials.forEach(
+              material => {
+                if (
+                  material.map
+                ) {
+                  material.map.dispose();
+                }
+
+                material.dispose();
+              }
+            );
+          }
+        }
+      );
+
+      functionAtlasGroup = null;
+
+      atlasRegionMaterials = [];
+      atlasLabelMaterials = [];
+
+      atlasVisible = false;
+      atlasFadeValue = 0;
+      atlasFadeTarget = 0;
+
+      atlasButton.classList.remove(
+        "active"
+      );
+
+      atlasButton.textContent =
+        "Brain Function Map";
+    }
+
+    /*
+      기존 GLB와 Atlas 제거
     */
     function removeExistingModel() {
       closePopup();
+
+      removeFunctionAtlas();
 
       if (lesionModel) {
         scene.remove(
@@ -1002,9 +1673,36 @@
 
             materials.forEach(
               material => {
-                if (material) {
-                  material.dispose();
+                if (!material) {
+                  return;
                 }
+
+                /*
+                  GLB가 텍스처를 사용하면 정리
+                */
+                if (material.map) {
+                  material.map.dispose();
+                }
+
+                if (
+                  material.normalMap
+                ) {
+                  material.normalMap.dispose();
+                }
+
+                if (
+                  material.roughnessMap
+                ) {
+                  material.roughnessMap.dispose();
+                }
+
+                if (
+                  material.metalnessMap
+                ) {
+                  material.metalnessMap.dispose();
+                }
+
+                material.dispose();
               }
             );
           }
@@ -1017,31 +1715,12 @@
       lesionPanel.classList.remove(
         "model-loaded"
       );
+
+      atlasButton.disabled = true;
     }
 
     /*
-      작은 3D 화면 클릭 시 확대 팝업
-    */
-    threeCanvas.addEventListener(
-      "click",
-      event => {
-        event.stopPropagation();
-
-        if (
-          !modelLoaded ||
-          isProcessing ||
-          isPopupOpen
-        ) {
-          return;
-        }
-
-        openPopup();
-      }
-    );
-
-    /*
-      클릭과 드래그를 구분하기 위한 처리
-      모델 회전 후 팝업이 열리는 현상을 줄인다.
+      작은 화면 클릭과 회전 드래그 구분
     */
     let pointerStartX = 0;
     let pointerStartY = 0;
@@ -1076,8 +1755,8 @@
           );
 
         if (
-          moveX > 5 ||
-          moveY > 5
+          moveX > 6 ||
+          moveY > 6
         ) {
           pointerMoved = true;
         }
@@ -1114,7 +1793,9 @@
     popup.addEventListener(
       "click",
       event => {
-        if (event.target === popup) {
+        if (
+          event.target === popup
+        ) {
           closePopup();
         }
       }
@@ -1156,7 +1837,6 @@
       window.setTimeout(
         () => {
           resizeThreeViewer();
-
           controls.update();
         },
         60
@@ -1186,7 +1866,6 @@
       window.setTimeout(
         () => {
           resizeThreeViewer();
-
           controls.update();
         },
         40
@@ -1194,8 +1873,8 @@
     }
 
     /*
-      캔버스가 작은 영역이나 팝업으로 이동할 때
-      Three.js 화면 크기를 다시 계산한다.
+      작은 화면 또는 팝업 크기에 맞춰
+      Three.js 캔버스를 다시 계산한다.
     */
     function resizeThreeViewer() {
       const parent =
@@ -1244,6 +1923,8 @@
       requestAnimationFrame(
         animate
       );
+
+      updateAtlasFade();
 
       controls.update();
 
