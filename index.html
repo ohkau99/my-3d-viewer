@@ -10,9 +10,6 @@
 
   <title>MedNeuro3D</title>
 
-  <!--
-    Three.js 추가 모듈이 내부에서 "three"를 찾을 수 있도록 지정한다.
-  -->
   <script type="importmap">
   {
     "imports": {
@@ -113,7 +110,7 @@
     }
 
     /*
-      Niivue 2×2 화면의 오른쪽 아래 부분을 덮는 영역
+      Niivue 2×2 화면의 오른쪽 아래 영역
     */
     #lesion-panel {
       position: absolute;
@@ -147,6 +144,24 @@
     }
 
     /*
+      팝업으로 캔버스가 이동한 뒤에도 보이게 한다.
+    */
+    #popup.active #three-canvas {
+      position: absolute;
+      inset: 0;
+      display: block;
+      width: 100%;
+      height: 100%;
+      visibility: visible;
+      background: #000000;
+      cursor: grab;
+    }
+
+    #popup.active #three-canvas:active {
+      cursor: grabbing;
+    }
+
+    /*
       10초 진행 바
     */
     #progress-overlay {
@@ -157,6 +172,7 @@
       align-items: center;
       justify-content: center;
       background: #000000;
+      pointer-events: none;
     }
 
     #progress-overlay.active {
@@ -196,7 +212,7 @@
       display: none;
       align-items: center;
       justify-content: center;
-      background: rgba(0, 0, 0, 0.9);
+      background: rgba(0, 0, 0, 0.92);
     }
 
     #popup.active {
@@ -219,6 +235,7 @@
     #popup-viewer {
       position: absolute;
       inset: 0;
+      overflow: hidden;
       background: #000000;
     }
 
@@ -491,6 +508,8 @@
     controls.dampingFactor = 0.07;
     controls.enablePan = true;
     controls.enableZoom = true;
+    controls.rotateSpeed = 0.7;
+    controls.zoomSpeed = 0.8;
 
     scene.add(
       new THREE.AmbientLight(
@@ -511,7 +530,9 @@
       8
     );
 
-    scene.add(light1);
+    scene.add(
+      light1
+    );
 
     const light2 =
       new THREE.DirectionalLight(
@@ -525,7 +546,9 @@
       4
     );
 
-    scene.add(light2);
+    scene.add(
+      light2
+    );
 
     const light3 =
       new THREE.DirectionalLight(
@@ -539,7 +562,9 @@
       -5
     );
 
-    scene.add(light3);
+    scene.add(
+      light3
+    );
 
     /*
       MRI 업로드
@@ -550,14 +575,19 @@
         const file =
           event.target.files?.[0];
 
-        if (!file || !nv || isProcessing) {
+        if (
+          !file ||
+          !nv ||
+          isProcessing
+        ) {
           return;
         }
 
         status.textContent =
           "Loading MRI...";
 
-        generateButton.disabled = true;
+        generateButton.disabled =
+          true;
 
         removeExistingModel();
 
@@ -633,7 +663,7 @@
     );
 
     /*
-      Generate 3D
+      Generate 3D 클릭
     */
     generateButton.addEventListener(
       "click",
@@ -731,6 +761,9 @@
       }
     );
 
+    /*
+      GLB 파일 불러오기
+    */
     function loadGlbModel(path) {
       return new Promise(
         (resolve, reject) => {
@@ -742,12 +775,7 @@
             gltf => {
               resolve(gltf);
             },
-            progress => {
-              console.log(
-                "GLB loading:",
-                progress.loaded
-              );
-            },
+            undefined,
             error => {
               reject(error);
             }
@@ -756,6 +784,9 @@
       );
     }
 
+    /*
+      10초 진행 바
+    */
     function runProgressAnimation(
       duration
     ) {
@@ -776,9 +807,6 @@
                 1
               );
 
-            /*
-              마지막으로 갈수록 약간 느려지는 진행 효과
-            */
             const eased =
               1 -
               Math.pow(
@@ -811,6 +839,9 @@
       );
     }
 
+    /*
+      3D 모델 재질 설정
+    */
     function prepareModel(model) {
       model.traverse(
         object => {
@@ -845,6 +876,9 @@
       );
     }
 
+    /*
+      모델 크기에 맞게 카메라 위치 조절
+    */
     function fitCameraToObject(object) {
       const box =
         new THREE.Box3().setFromObject(
@@ -938,6 +972,9 @@
       controls.update();
     }
 
+    /*
+      기존 3D 모델 제거
+    */
     function removeExistingModel() {
       closePopup();
 
@@ -983,17 +1020,83 @@
     }
 
     /*
-      3D 영역 클릭 시 팝업
+      작은 3D 화면 클릭 시 확대 팝업
     */
-    lesionPanel.addEventListener(
+    threeCanvas.addEventListener(
       "click",
-      () => {
+      event => {
+        event.stopPropagation();
+
         if (
           !modelLoaded ||
-          isProcessing
+          isProcessing ||
+          isPopupOpen
         ) {
           return;
         }
+
+        openPopup();
+      }
+    );
+
+    /*
+      클릭과 드래그를 구분하기 위한 처리
+      모델 회전 후 팝업이 열리는 현상을 줄인다.
+    */
+    let pointerStartX = 0;
+    let pointerStartY = 0;
+    let pointerMoved = false;
+
+    threeCanvas.addEventListener(
+      "pointerdown",
+      event => {
+        pointerStartX =
+          event.clientX;
+
+        pointerStartY =
+          event.clientY;
+
+        pointerMoved = false;
+      }
+    );
+
+    threeCanvas.addEventListener(
+      "pointermove",
+      event => {
+        const moveX =
+          Math.abs(
+            event.clientX -
+            pointerStartX
+          );
+
+        const moveY =
+          Math.abs(
+            event.clientY -
+            pointerStartY
+          );
+
+        if (
+          moveX > 5 ||
+          moveY > 5
+        ) {
+          pointerMoved = true;
+        }
+      }
+    );
+
+    threeCanvas.addEventListener(
+      "pointerup",
+      event => {
+        if (
+          pointerMoved ||
+          !modelLoaded ||
+          isProcessing ||
+          isPopupOpen
+        ) {
+          return;
+        }
+
+        event.stopPropagation();
 
         openPopup();
       }
@@ -1003,6 +1106,7 @@
       "click",
       event => {
         event.stopPropagation();
+
         closePopup();
       }
     );
@@ -1028,6 +1132,9 @@
       }
     );
 
+    /*
+      팝업 열기
+    */
     function openPopup() {
       if (
         !modelLoaded ||
@@ -1047,11 +1154,18 @@
       );
 
       window.setTimeout(
-        resizeThreeViewer,
-        50
+        () => {
+          resizeThreeViewer();
+
+          controls.update();
+        },
+        60
       );
     }
 
+    /*
+      팝업 닫기
+    */
     function closePopup() {
       if (
         threeCanvas.parentElement !==
@@ -1070,11 +1184,19 @@
       );
 
       window.setTimeout(
-        resizeThreeViewer,
-        30
+        () => {
+          resizeThreeViewer();
+
+          controls.update();
+        },
+        40
       );
     }
 
+    /*
+      캔버스가 작은 영역이나 팝업으로 이동할 때
+      Three.js 화면 크기를 다시 계산한다.
+    */
     function resizeThreeViewer() {
       const parent =
         threeCanvas.parentElement;
@@ -1102,12 +1224,22 @@
         false
       );
 
+      renderer.setPixelRatio(
+        Math.min(
+          window.devicePixelRatio,
+          2
+        )
+      );
+
       camera.aspect =
         width / height;
 
       camera.updateProjectionMatrix();
     }
 
+    /*
+      Three.js 반복 렌더링
+    */
     function animate() {
       requestAnimationFrame(
         animate
