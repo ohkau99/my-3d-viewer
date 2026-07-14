@@ -277,6 +277,110 @@
       background: #374151;
     }
 
+
+    #analysis-panel {
+      position: absolute;
+      top: 14px;
+      left: 14px;
+      z-index: 30;
+      width: min(370px, calc(100% - 28px));
+      max-height: calc(100% - 28px);
+      padding: 16px 17px;
+      border: 1px solid rgba(125, 211, 252, 0.42);
+      border-radius: 14px;
+      background: rgba(3, 10, 20, 0.88);
+      box-shadow:
+        0 14px 38px rgba(0, 0, 0, 0.42),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(9px);
+      overflow-y: auto;
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(-8px);
+      transition:
+        opacity 0.28s ease,
+        transform 0.28s ease,
+        visibility 0.28s ease;
+      pointer-events: none;
+    }
+
+    #analysis-panel.visible {
+      opacity: 1;
+      visibility: visible;
+      transform: translateY(0);
+    }
+
+    #analysis-panel.functional {
+      border-color: rgba(74, 222, 128, 0.48);
+    }
+
+    #analysis-kicker {
+      margin-bottom: 6px;
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    #analysis-panel.functional #analysis-kicker {
+      color: #86efac;
+    }
+
+    #analysis-title {
+      margin: 0 0 10px;
+      color: #ffffff;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    #analysis-summary {
+      margin: 0;
+      color: #dbeafe;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    #analysis-items {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .analysis-item {
+      padding: 9px 10px;
+      border-left: 3px solid #38bdf8;
+      border-radius: 7px;
+      background: rgba(255, 255, 255, 0.045);
+    }
+
+    #analysis-panel.functional .analysis-item {
+      border-left-color: #4ade80;
+    }
+
+    .analysis-item strong {
+      display: block;
+      margin-bottom: 3px;
+      color: #ffffff;
+      font-size: 12px;
+    }
+
+    .analysis-item span {
+      display: block;
+      color: #b9c7d8;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    #analysis-warning {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
     @media (max-width: 900px) {
       #toolbar {
         flex-wrap: wrap;
@@ -353,6 +457,28 @@
           <div id="progress-bar"></div>
         </div>
       </div>
+
+      <aside
+        id="analysis-panel"
+        aria-live="polite"
+      >
+        <div id="analysis-kicker">
+          3D SEGMENTATION
+        </div>
+
+        <h2 id="analysis-title">
+          Segmentation Analysis
+        </h2>
+
+        <p id="analysis-summary"></p>
+
+        <div id="analysis-items"></div>
+
+        <div id="analysis-warning">
+          Demonstration analysis for visualization only.
+          Not a clinical diagnosis or surgical recommendation.
+        </div>
+      </aside>
     </section>
   </main>
 
@@ -435,6 +561,21 @@
 
     const popupClose =
       document.getElementById("popup-close");
+
+    const analysisPanel =
+      document.getElementById("analysis-panel");
+
+    const analysisKicker =
+      document.getElementById("analysis-kicker");
+
+    const analysisTitle =
+      document.getElementById("analysis-title");
+
+    const analysisSummary =
+      document.getElementById("analysis-summary");
+
+    const analysisItems =
+      document.getElementById("analysis-items");
 
     let nv = null;
     let currentObjectUrl = null;
@@ -795,6 +936,8 @@
           status.textContent =
             "3D model generated.";
 
+          showSegmentationAnalysis();
+
           resizeThreeViewer();
         } catch (error) {
           console.error(
@@ -812,6 +955,8 @@
 
           status.textContent =
             "3D generation failed. Check patient07.glb.";
+
+          hideAnalysisPanel();
         } finally {
           isProcessing = false;
 
@@ -853,6 +998,8 @@
 
           status.textContent =
             "Brain function map displayed.";
+
+          showFunctionalAnalysis();
         } else {
           atlasFadeTarget = 0;
 
@@ -865,9 +1012,145 @@
 
           status.textContent =
             "Brain function map hidden.";
+
+          showSegmentationAnalysis();
         }
       }
     );
+
+    /*
+      분석 패널
+    */
+    function setAnalysisContent({
+      mode,
+      kicker,
+      title,
+      summary,
+      items
+    }) {
+      analysisPanel.classList.toggle(
+        "functional",
+        mode === "functional"
+      );
+
+      analysisKicker.textContent =
+        kicker;
+
+      analysisTitle.textContent =
+        title;
+
+      analysisSummary.textContent =
+        summary;
+
+      analysisItems.innerHTML = "";
+
+      items.forEach(
+        item => {
+          const element =
+            document.createElement(
+              "div"
+            );
+
+          element.className =
+            "analysis-item";
+
+          const heading =
+            document.createElement(
+              "strong"
+            );
+
+          heading.textContent =
+            item.title;
+
+          const description =
+            document.createElement(
+              "span"
+            );
+
+          description.textContent =
+            item.description;
+
+          element.append(
+            heading,
+            description
+          );
+
+          analysisItems.append(
+            element
+          );
+        }
+      );
+
+      analysisPanel.classList.add(
+        "visible"
+      );
+    }
+
+    function showSegmentationAnalysis() {
+      setAnalysisContent({
+        mode: "segmentation",
+        kicker: "3D SEGMENTATION",
+        title: "Segmentation Analysis",
+        summary:
+          "A segmented lesion is visualized along the lateral aspect of the brain model. The lesion has an irregular contour and a localized outward extension.",
+        items: [
+          {
+            title: "Lesion morphology",
+            description:
+              "Irregular three-dimensional contour identified on the segmented mesh."
+          },
+          {
+            title: "Anatomical relationship",
+            description:
+              "The lesion occupies a lateral cortical region and should be reviewed together with adjacent functional structures."
+          },
+          {
+            title: "Recommended review",
+            description:
+              "Confirm lesion volume, anatomical localization, edema, and relationship to nearby cortex and white-matter pathways."
+          }
+        ]
+      });
+    }
+
+    function showFunctionalAnalysis() {
+      setAnalysisContent({
+        mode: "functional",
+        kicker: "FUNCTIONAL PROXIMITY",
+        title: "Functional Proximity Analysis",
+        summary:
+          "In this demonstration map, the lesion is positioned between the primary somatosensory cortex and language-related regions. These adjacent structures require particular attention during surgical planning.",
+        items: [
+          {
+            title: "Primary Somatosensory Cortex (S1)",
+            description:
+              "Close proximity may be associated with postoperative sensory disturbance involving the contralateral face, arm, or hand."
+          },
+          {
+            title: "Broca's and Wernicke's Areas",
+            description:
+              "Nearby language cortex may require assessment of speech production and language comprehension, particularly in the dominant hemisphere."
+          },
+          {
+            title: "Arcuate Fasciculus",
+            description:
+              "Potential pathway involvement should be reviewed because disruption may affect communication between language regions."
+          },
+          {
+            title: "Corticospinal Tract (CST)",
+            description:
+              "The motor pathway should be preserved and its distance from the lesion confirmed with tract-based imaging."
+          }
+        ]
+      });
+    }
+
+    function hideAnalysisPanel() {
+      analysisPanel.classList.remove(
+        "visible",
+        "functional"
+      );
+    }
 
     /*
       GLB 불러오기
@@ -1124,32 +1407,56 @@
       */
       const atlasRegions = [
         {
-          name: "Motor Cortex",
+          name: "Primary Motor Cortex (M1)",
           color: 0x22d3ee,
-          position: [-0.12, 0.22, 0.16],
-          scale: [0.11, 0.13, 0.07],
-          labelOffset: [-0.18, 0.38, 0.18]
+          position: [-0.15, 0.23, 0.16],
+          scale: [0.055, 0.15, 0.045],
+          labelOffset: [-0.22, 0.39, 0.18]
         },
         {
-          name: "Sensory Cortex",
+          name: "Primary Somatosensory Cortex (S1)",
           color: 0x4ade80,
-          position: [0.13, 0.10, 0.17],
-          scale: [0.11, 0.14, 0.07],
-          labelOffset: [0.24, 0.25, 0.19]
+          position: [0.08, 0.13, 0.17],
+          scale: [0.055, 0.15, 0.045],
+          labelOffset: [0.22, 0.31, 0.19]
         },
         {
-          name: "Language Area",
+          name: "Broca's Area",
           color: 0xfacc15,
-          position: [0.25, -0.10, 0.10],
-          scale: [0.12, 0.10, 0.07],
-          labelOffset: [0.38, -0.18, 0.12]
+          position: [0.25, -0.08, 0.12],
+          scale: [0.085, 0.065, 0.05],
+          labelOffset: [0.38, -0.15, 0.14]
         },
         {
-          name: "Visual Cortex",
+          name: "Wernicke's Area",
+          color: 0xfb7185,
+          position: [0.24, 0.055, 0.08],
+          scale: [0.085, 0.065, 0.05],
+          labelOffset: [0.39, 0.07, 0.10]
+        },
+        {
+          name: "Arcuate Fasciculus",
+          color: 0xf97316,
+          position: [0.17, -0.015, 0.015],
+          scale: [0.055, 0.17, 0.035],
+          rotation: [0.15, 0.0, -0.52],
+          labelOffset: [0.28, -0.29, 0.02]
+        },
+        {
+          name: "Corticospinal Tract (CST)",
+          color: 0x60a5fa,
+          position: [-0.025, -0.09, -0.015],
+          scale: [0.045, 0.20, 0.035],
+          rotation: [0.0, 0.0, 0.10],
+          labelOffset: [-0.20, -0.31, 0.00]
+        },
+        {
+          name: "Optic Radiation",
           color: 0xc084fc,
-          position: [-0.23, -0.19, -0.03],
-          scale: [0.12, 0.11, 0.07],
-          labelOffset: [-0.38, -0.27, 0.00]
+          position: [-0.23, -0.19, -0.04],
+          scale: [0.12, 0.075, 0.045],
+          rotation: [0.0, 0.15, -0.15],
+          labelOffset: [-0.38, -0.28, 0.00]
         }
       ];
 
@@ -1217,6 +1524,14 @@
               size.z
           );
 
+          if (region.rotation) {
+            mesh.rotation.set(
+              region.rotation[0],
+              region.rotation[1],
+              region.rotation[2]
+            );
+          }
+
           mesh.renderOrder = 20;
 
           atlasRegionMaterials.push(
@@ -1260,6 +1575,10 @@
 
           edgeMesh.scale.copy(
             mesh.scale
+          );
+
+          edgeMesh.rotation.copy(
+            mesh.rotation
           );
 
           edgeMesh.scale.multiplyScalar(
@@ -1405,7 +1724,7 @@
         "#ffffff";
 
       context.font =
-        "bold 42px Arial";
+        "bold 36px Arial";
 
       context.textAlign =
         "center";
@@ -1448,7 +1767,7 @@
         );
 
       const labelWidth =
-        baseSize * 0.30;
+        baseSize * 0.25;
 
       const labelHeight =
         labelWidth * 0.25;
@@ -1648,6 +1967,8 @@
     */
     function removeExistingModel() {
       closePopup();
+
+      hideAnalysisPanel();
 
       removeFunctionAtlas();
 
