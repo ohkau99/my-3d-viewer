@@ -381,7 +381,34 @@
       line-height: 1.45;
     }
 
-    @media (max-width: 900px) {
+    
+    #popup-analysis-panel {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 340px;
+      max-height: calc(100% - 28px);
+      overflow-y: auto;
+      padding: 14px;
+      border-radius: 12px;
+      background: rgba(3,10,20,0.88);
+      border: 1px solid rgba(125,211,252,0.35);
+      z-index: 10;
+    }
+
+    #popup-analysis-panel h3 {
+      margin: 0 0 10px;
+      color: white;
+      font-size: 16px;
+    }
+
+    #popup-analysis-content {
+      color: #dbeafe;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+@media (max-width: 900px) {
       #toolbar {
         flex-wrap: wrap;
         padding: 10px;
@@ -576,6 +603,9 @@
 
     const analysisItems =
       document.getElementById("analysis-items");
+
+    const popupAnalysisContent =
+      document.getElementById("popup-analysis-content");
 
     let nv = null;
     let currentObjectUrl = null;
@@ -1084,6 +1114,8 @@
       analysisPanel.classList.add(
         "visible"
       );
+
+      syncPopupAnalysis();
     }
 
     function showSegmentationAnalysis() {
@@ -1145,7 +1177,22 @@
       });
     }
 
-    function hideAnalysisPanel() {
+    
+    function syncPopupAnalysis() {
+      if (!popupAnalysisContent) return;
+
+      popupAnalysisContent.innerHTML =
+        `<strong>${analysisTitle.textContent}</strong><br><br>` +
+        analysisSummary.textContent +
+        "<br><br>" +
+        analysisItems.innerHTML
+          .replace(/<strong>/g,"<b>")
+          .replace(/<\/strong>/g,"</b><br>")
+          .replace(/<span>/g,"")
+          .replace(/<\/span>/g,"<br><br>");
+    }
+
+function hideAnalysisPanel() {
       analysisPanel.classList.remove(
         "visible",
         "functional"
