@@ -20,99 +20,306 @@
   </script>
 
   <style>
-    * {
-      box-sizing: border-box;
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #050b16;
+      --panel: #07111f;
+      --panel-2: #091829;
+      --line: #0c4f88;
+      --line-soft: rgba(26, 104, 164, 0.45);
+      --header: #07508c;
+      --cyan: #14c7e8;
+      --text: #e7f1fb;
+      --muted: #8da6bb;
+      --danger: #ff6f76;
     }
 
-    html,
-    body {
+    html, body {
       width: 100%;
       height: 100%;
       margin: 0;
       overflow: hidden;
-      background: #000000;
-      color: #ffffff;
+      background: var(--bg);
+      color: var(--text);
       font-family: Arial, Helvetica, sans-serif;
     }
 
     body {
-      display: flex;
-      flex-direction: column;
+      display: grid;
+      grid-template-rows: 34px 34px minmax(0, 1fr) 24px;
     }
 
-    /* 상단 도구 영역 */
-    #toolbar {
-      min-height: 64px;
-      flex-shrink: 0;
+    button, input { font: inherit; }
+
+    #menu-bar {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 10px 20px;
-      background: #111827;
-      border-bottom: 1px solid #273244;
+      padding: 0 12px;
+      background: #064d87;
+      border-bottom: 1px solid #063d69;
+      font-size: 12px;
+      color: #edf7ff;
     }
 
-    #title {
-      margin-right: 12px;
-      color: #22d3ee;
-      font-size: 20px;
+    #menu-left {
+      display: flex;
+      gap: 22px;
+    }
+
+    #brand {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 15px;
       font-weight: 800;
-      letter-spacing: -0.5px;
-      white-space: nowrap;
+      letter-spacing: -0.3px;
     }
 
-    .button {
-      height: 38px;
-      padding: 0 18px;
-      border: 1px solid #0891b2;
-      border-radius: 6px;
-      background: #06b6d4;
-      color: #001018;
-      font-size: 14px;
-      font-weight: 700;
-      white-space: nowrap;
-      cursor: pointer;
-      transition:
-        background 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease;
+    #brand::before {
+      content: "M";
+      display: inline-grid;
+      place-items: center;
+      width: 19px;
+      height: 19px;
+      margin-right: 5px;
+      border: 1px solid rgba(255,255,255,.85);
+      clip-path: polygon(0 0, 50% 36%, 100% 0, 100% 100%, 50% 66%, 0 100%);
+      font-size: 0;
+      vertical-align: middle;
     }
 
-    .button:hover:not(:disabled) {
-      background: #22d3ee;
-    }
-
-    .button:disabled {
-      border-color: #4b5563;
-      background: #374151;
-      color: #9ca3af;
-      cursor: default;
-    }
-
-    #atlas-button.active {
-      border-color: #facc15;
-      background: #facc15;
-      color: #1f1600;
-    }
-
-    #file-input {
-      display: none;
-    }
-
-    #status {
+    #window-icons {
       margin-left: auto;
-      color: #a5f3fc;
-      font-size: 13px;
-      white-space: nowrap;
+      letter-spacing: 10px;
+      opacity: .9;
     }
 
-    /* 전체 뷰어 */
+    #tool-strip {
+      display: flex;
+      align-items: center;
+      gap: 11px;
+      padding: 0 12px;
+      background: #061321;
+      border-bottom: 1px solid #0a375c;
+      color: #8fb5d1;
+      font-size: 13px;
+    }
+
+    #tool-strip .fake-icon {
+      width: 13px;
+      text-align: center;
+      opacity: .85;
+    }
+
+    #mode-switch {
+      margin-left: auto;
+      display: flex;
+      border: 1px solid #0b4e84;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    #mode-switch span {
+      padding: 4px 14px;
+      font-size: 10px;
+      background: #081624;
+      color: #7790a3;
+    }
+
+    #mode-switch .selected {
+      background: #0a5fa2;
+      color: white;
+    }
+
+    #app-shell {
+      display: grid;
+      grid-template-columns: 190px minmax(0, 1fr) 190px;
+      min-height: 0;
+      background: #020812;
+    }
+
+    #left-sidebar,
+    #right-sidebar {
+      min-width: 0;
+      overflow: hidden;
+      background: #06101d;
+    }
+
+    #left-sidebar {
+      border-right: 1px solid #0b426e;
+    }
+
+    #right-sidebar {
+      border-left: 1px solid #0b426e;
+    }
+
+    .side-section {
+      border-bottom: 1px solid #0b426e;
+    }
+
+    .section-title {
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 7px;
+      background: #07558f;
+      color: #f1f8ff;
+      font-size: 10px;
+      font-weight: 700;
+    }
+
+    .section-body {
+      padding: 10px 8px 11px;
+      color: #b8c9d8;
+      font-size: 10px;
+      line-height: 1.55;
+    }
+
+    .data-row {
+      display: grid;
+      grid-template-columns: 48px 1fr;
+      gap: 4px;
+      margin-bottom: 5px;
+    }
+
+    .data-row span:first-child {
+      color: #738da2;
+    }
+
+    .value-cyan { color: var(--cyan); }
+    .value-danger { color: var(--danger); }
+
+    .metric-line {
+      height: 5px;
+      margin: 4px 0 8px;
+      background: #123149;
+      overflow: hidden;
+    }
+
+    .metric-line span {
+      display: block;
+      width: 92%;
+      height: 100%;
+      background: var(--cyan);
+    }
+
+    #donut-area {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 9px 5px;
+      padding: 10px 5px 12px;
+    }
+
+    .donut-card {
+      text-align: center;
+      color: #a9bdcc;
+      font-size: 8px;
+    }
+
+    .donut {
+      --value: 82%;
+      width: 62px;
+      height: 62px;
+      margin: 7px auto 0;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      background: conic-gradient(var(--cyan) var(--value), #133449 0);
+      position: relative;
+    }
+
+    .donut::before {
+      content: "";
+      position: absolute;
+      inset: 11px;
+      border-radius: 50%;
+      background: #07111f;
+    }
+
+    .donut b {
+      position: relative;
+      z-index: 1;
+      color: white;
+      font-size: 13px;
+    }
+
+    .slider-group {
+      margin-bottom: 12px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 5px;
+      color: #9db2c1;
+      font-size: 9px;
+    }
+
+    .fake-slider {
+      height: 4px;
+      background: #15364e;
+      position: relative;
+    }
+
+    .fake-slider::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 48%;
+      height: 100%;
+      background: var(--cyan);
+    }
+
+    .fake-slider::after {
+      content: "";
+      position: absolute;
+      left: 47%;
+      top: 50%;
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: white;
+      transform: translate(-50%, -50%);
+    }
+
+    .toggle-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 8px 0;
+      color: #9db2c1;
+      font-size: 9px;
+    }
+
+    .fake-toggle {
+      width: 22px;
+      height: 11px;
+      border-radius: 20px;
+      background: #16405c;
+      position: relative;
+    }
+
+    .fake-toggle::after {
+      content: "";
+      position: absolute;
+      width: 9px;
+      height: 9px;
+      top: 1px;
+      left: 12px;
+      border-radius: 50%;
+      background: var(--cyan);
+    }
+
     #viewer-area {
       position: relative;
-      flex: 1;
+      min-width: 0;
       min-height: 0;
       overflow: hidden;
-      background: #000000;
+      background: #020812;
+      border-left: 1px solid rgba(5, 67, 111, .6);
+      border-right: 1px solid rgba(5, 67, 111, .6);
     }
 
     #niivue-canvas {
@@ -121,13 +328,23 @@
       display: block;
       width: 100%;
       height: 100%;
-      background: #000000;
+      background: #020812;
     }
 
-    /*
-      Niivue 2×2 화면의 오른쪽 아래 영역을
-      Three.js 뷰어로 덮는다.
-    */
+    .view-label {
+      position: absolute;
+      z-index: 7;
+      padding: 5px 7px;
+      color: #d7e7f2;
+      font-size: 9px;
+      pointer-events: none;
+    }
+
+    #label-axial { left: 5px; top: 4px; }
+    #label-sagittal { left: calc(50% + 5px); top: 4px; }
+    #label-coronal { left: 5px; top: calc(50% + 4px); }
+    #label-3d { left: calc(50% + 5px); top: calc(50% + 4px); }
+
     #lesion-panel {
       position: absolute;
       left: 50%;
@@ -136,23 +353,35 @@
       bottom: 0;
       z-index: 10;
       overflow: hidden;
-      background: #000000;
-      border-top: 1px solid rgba(255, 255, 255, 0.12);
-      border-left: 1px solid rgba(255, 255, 255, 0.12);
+      background: #071726;
+      border-top: 1px solid var(--line-soft);
+      border-left: 1px solid var(--line-soft);
     }
 
-    #lesion-panel.model-loaded {
-      cursor: pointer;
+    #lesion-panel::before {
+      content: "3D visualization will appear here";
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #bed3e3;
+      font-size: 17px;
+      pointer-events: none;
     }
+
+    #lesion-panel.model-loaded::before {
+      display: none;
+    }
+
+    #lesion-panel.model-loaded { cursor: pointer; }
 
     #three-canvas {
       position: absolute;
       inset: 0;
-      display: block;
       width: 100%;
       height: 100%;
       visibility: hidden;
-      background: #000000;
+      background: #071726;
       touch-action: none;
     }
 
@@ -160,232 +389,21 @@
       visibility: visible;
     }
 
-    /*
-      팝업으로 캔버스가 이동한 경우
-    */
-    #popup.active #three-canvas {
-      position: absolute;
-      inset: 0;
-      display: block;
-      width: 100%;
-      height: 100%;
-      visibility: visible;
-      background: #000000;
-      cursor: grab;
-    }
-
-    #popup.active #three-canvas:active {
-      cursor: grabbing;
-    }
-
-    /*
-      10초 진행 바
-    */
-    #progress-overlay {
-      position: absolute;
-      inset: 0;
-      z-index: 20;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: #000000;
-      pointer-events: none;
-    }
-
-    #progress-overlay.active {
-      display: flex;
-    }
-
-    #progress-track {
-      width: 68%;
-      max-width: 430px;
-      height: 10px;
-      overflow: hidden;
-      background: #1f2937;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 999px;
-    }
-
-    #progress-bar {
-      width: 0%;
-      height: 100%;
-      border-radius: 999px;
-      background: linear-gradient(
-        90deg,
-        #0891b2,
-        #22d3ee,
-        #67e8f9
-      );
-      box-shadow: 0 0 14px rgba(34, 211, 238, 0.9);
-    }
-
-    /*
-      확대 팝업
-    */
-    #popup {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 0, 0, 0.92);
-    }
-
-    #popup.active {
-      display: flex;
-    }
-
-    #popup-content {
-      position: relative;
-      width: 92vw;
-      height: 88vh;
-      max-width: 1400px;
-      max-height: 920px;
-      overflow: hidden;
-      background: #000000;
-      border: 1px solid #374151;
-      border-radius: 10px;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8);
-    }
-
-    #popup-viewer {
-      position: absolute;
-      inset: 0;
-      overflow: hidden;
-      background: #000000;
-    }
-
-    #popup-close {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      z-index: 1010;
-      width: 42px;
-      height: 42px;
-      padding: 0;
-      border: 1px solid rgba(255, 255, 255, 0.25);
-      border-radius: 50%;
-      background: rgba(17, 24, 39, 0.9);
-      color: #ffffff;
-      font-size: 27px;
-      line-height: 38px;
-      cursor: pointer;
-    }
-
-    #popup-close:hover {
-      background: #374151;
-    }
-
-    #popup-analysis-panel {
-      position: absolute;
-      top: 68px;
-      right: 18px;
-      z-index: 1005;
-      width: min(370px, calc(100% - 36px));
-      max-height: calc(100% - 86px);
-      padding: 16px 17px;
-      overflow-y: auto;
-      border: 1px solid rgba(125, 211, 252, 0.46);
-      border-radius: 14px;
-      background: rgba(3, 10, 20, 0.91);
-      box-shadow:
-        0 16px 42px rgba(0, 0, 0, 0.52),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(10px);
-      pointer-events: auto;
-    }
-
-    #popup-analysis-panel.functional {
-      border-color: rgba(74, 222, 128, 0.52);
-    }
-
-    #popup-analysis-kicker {
-      margin-bottom: 6px;
-      color: #7dd3fc;
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-    }
-
-    #popup-analysis-panel.functional
-    #popup-analysis-kicker {
-      color: #86efac;
-    }
-
-    #popup-analysis-title {
-      margin: 0 0 10px;
-      color: #ffffff;
-      font-size: 17px;
-      line-height: 1.25;
-    }
-
-    #popup-analysis-summary {
-      margin: 0;
-      color: #dbeafe;
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    #popup-analysis-items {
-      display: grid;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    #popup-analysis-panel .analysis-item {
-      border-left-color: #38bdf8;
-    }
-
-    #popup-analysis-panel.functional .analysis-item {
-      border-left-color: #4ade80;
-    }
-
-    #popup-analysis-warning {
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.12);
-      color: #94a3b8;
-      font-size: 10px;
-      line-height: 1.45;
-    }
-
-    @media (max-width: 760px) {
-      #popup-analysis-panel {
-        top: auto;
-        right: 12px;
-        bottom: 12px;
-        left: 12px;
-        width: auto;
-        max-height: 42%;
-      }
-    }
-
-
     #analysis-panel {
       position: absolute;
-      top: 14px;
-      left: 14px;
+      left: 12px;
+      right: 12px;
+      bottom: 10px;
       z-index: 30;
-      width: min(370px, calc(100% - 28px));
-      max-height: calc(100% - 28px);
-      padding: 16px 17px;
-      border: 1px solid rgba(125, 211, 252, 0.42);
-      border-radius: 14px;
-      background: rgba(3, 10, 20, 0.88);
-      box-shadow:
-        0 14px 38px rgba(0, 0, 0, 0.42),
-        inset 0 1px 0 rgba(255, 255, 255, 0.04);
-      backdrop-filter: blur(9px);
+      max-height: 42%;
+      padding: 10px 12px;
       overflow-y: auto;
+      border: 1px solid rgba(32, 141, 211, .38);
+      background: rgba(3, 12, 22, .88);
       opacity: 0;
       visibility: hidden;
-      transform: translateY(-8px);
-      transition:
-        opacity 0.28s ease,
-        transform 0.28s ease,
-        visibility 0.28s ease;
+      transform: translateY(8px);
+      transition: .25s ease;
       pointer-events: none;
     }
 
@@ -395,206 +413,481 @@
       transform: translateY(0);
     }
 
-    #analysis-panel.functional {
-      border-color: rgba(74, 222, 128, 0.48);
-    }
-
-    #analysis-kicker {
-      margin-bottom: 6px;
-      color: #7dd3fc;
-      font-size: 11px;
+    #analysis-kicker,
+    #popup-analysis-kicker {
+      color: var(--cyan);
+      font-size: 9px;
       font-weight: 800;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
+      letter-spacing: .1em;
     }
 
-    #analysis-panel.functional #analysis-kicker {
-      color: #86efac;
+    #analysis-title,
+    #popup-analysis-title {
+      margin: 4px 0 6px;
+      font-size: 13px;
     }
 
-    #analysis-title {
-      margin: 0 0 10px;
-      color: #ffffff;
-      font-size: 17px;
-      line-height: 1.25;
-    }
-
-    #analysis-summary {
+    #analysis-summary,
+    #popup-analysis-summary {
       margin: 0;
-      color: #dbeafe;
-      font-size: 12px;
-      line-height: 1.55;
-    }
-
-    #analysis-items {
-      display: grid;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .analysis-item {
-      padding: 9px 10px;
-      border-left: 3px solid #38bdf8;
-      border-radius: 7px;
-      background: rgba(255, 255, 255, 0.045);
-    }
-
-    #analysis-panel.functional .analysis-item {
-      border-left-color: #4ade80;
-    }
-
-    .analysis-item strong {
-      display: block;
-      margin-bottom: 3px;
-      color: #ffffff;
-      font-size: 12px;
-    }
-
-    .analysis-item span {
-      display: block;
-      color: #b9c7d8;
-      font-size: 11px;
-      line-height: 1.4;
-    }
-
-    #analysis-warning {
-      margin-top: 12px;
-      padding-top: 10px;
-      border-top: 1px solid rgba(255, 255, 255, 0.12);
-      color: #94a3b8;
+      color: #b9cddd;
       font-size: 10px;
       line-height: 1.45;
     }
 
-    @media (max-width: 900px) {
-      #toolbar {
-        flex-wrap: wrap;
-        padding: 10px;
+    #analysis-items,
+    #popup-analysis-items {
+      display: grid;
+      gap: 5px;
+      margin-top: 7px;
+    }
+
+    .analysis-item {
+      padding-left: 7px;
+      border-left: 2px solid var(--cyan);
+      font-size: 9px;
+      line-height: 1.35;
+    }
+
+    .analysis-item strong {
+      display: block;
+      color: white;
+    }
+
+    .analysis-item span {
+      color: #91aabd;
+    }
+
+    #analysis-warning,
+    #popup-analysis-warning {
+      margin-top: 7px;
+      color: #6f879a;
+      font-size: 8px;
+    }
+
+    #progress-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 900;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(2, 8, 18, .84);
+      pointer-events: none;
+    }
+
+    #progress-overlay.active { display: flex; }
+
+    #progress-overlay::before {
+      content: "Generating 3D Reconstruction...";
+      position: absolute;
+      margin-top: -92px;
+      color: #f1f7fc;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    #progress-overlay::after {
+      content: "Analyzing MRI data and reconstructing 3D volume.";
+      position: absolute;
+      margin-top: 86px;
+      color: #8fa7b8;
+      font-size: 11px;
+    }
+
+    #progress-track {
+      width: 340px;
+      height: 10px;
+      border: 1px solid #173e5b;
+      background: #0b1c2b;
+    }
+
+    #progress-bar {
+      width: 0%;
+      height: 100%;
+      background: #b7c9ff;
+    }
+
+    .action-stack {
+      padding: 6px 6px 8px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .action-button,
+    .action-label {
+      height: 39px;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      border: 1px solid #173c61;
+      background: #07131f;
+      color: #6e8496;
+      font-size: 11px;
+      cursor: default;
+    }
+
+    .action-button.real,
+    .action-label.real {
+      border-color: #235fa0;
+      background: #3155bd;
+      color: white;
+      cursor: pointer;
+    }
+
+    .action-button.real:hover,
+    .action-label.real:hover {
+      filter: brightness(1.1);
+    }
+
+    .action-button:disabled {
+      opacity: .42;
+      cursor: default;
+    }
+
+    #atlas-button.active {
+      background: #0c79a8;
+      border-color: #18c9e9;
+    }
+
+    #file-input { display: none; }
+
+    #status-bar {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      background: #064d87;
+      color: #c8deed;
+      font-size: 9px;
+      border-top: 1px solid #063b67;
+    }
+
+    #status {
+      margin-left: auto;
+      color: #cfefff;
+    }
+
+    #popup {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 8, 16, .88);
+    }
+
+    #popup.active { display: flex; }
+
+    #popup-content {
+      position: relative;
+      width: 74vw;
+      height: 74vh;
+      min-width: 760px;
+      min-height: 500px;
+      max-width: 1180px;
+      max-height: 800px;
+      overflow: hidden;
+      background: #06101d;
+      border: 1px solid #0b5b94;
+      box-shadow: 0 20px 70px rgba(0,0,0,.7);
+    }
+
+    #popup-viewer {
+      position: absolute;
+      inset: 0 360px 0 0;
+      background: #020812;
+    }
+
+    #popup.active #three-canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      visibility: visible;
+      background: #020812;
+      cursor: grab;
+    }
+
+    #popup-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 1020;
+      width: 30px;
+      height: 30px;
+      border: 0;
+      background: transparent;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+    }
+
+    #popup-analysis-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 1005;
+      width: 360px;
+      padding: 64px 18px 18px;
+      overflow-y: auto;
+      border-left: 1px solid #0b4e82;
+      background: #071321;
+    }
+
+    #popup-analysis-panel.functional {
+      border-left-color: #148ba3;
+    }
+
+    @media (max-width: 1050px) {
+      #app-shell {
+        grid-template-columns: 160px minmax(0, 1fr) 170px;
       }
 
-      #title {
-        width: 100%;
-      }
-
-      #status {
-        width: 100%;
-        margin-left: 0;
-      }
-
-      .button {
-        padding: 0 12px;
-        font-size: 13px;
+      #popup-content {
+        width: 92vw;
+        min-width: 0;
       }
     }
   </style>
 </head>
 
 <body>
-  <header id="toolbar">
-    <div id="title">
-      MED-NEURO 3D
+  <header id="menu-bar">
+    <div id="menu-left">
+      <span>File</span>
+      <span>Edit</span>
+      <span>View</span>
+      <span>Tests</span>
+      <span>Help</span>
     </div>
 
-    <label
-      class="button"
-      for="file-input"
-    >
-      Upload MRI
-    </label>
+    <div id="brand">MedNeuro3D</div>
 
-    <input
-      id="file-input"
-      type="file"
-      accept=".nii,.nii.gz,.gz"
-    />
-
-    <button
-      id="generate-button"
-      class="button"
-      type="button"
-      disabled
-    >
-      Generate 3D
-    </button>
-
-    <button
-      id="atlas-button"
-      class="button"
-      type="button"
-      disabled
-    >
-      Brain Function Map
-    </button>
-
-    <div id="status">
-      Initializing viewer...
-    </div>
+    <div id="window-icons">− □ ×</div>
   </header>
 
-  <main id="viewer-area">
-    <canvas id="niivue-canvas"></canvas>
+  <div id="tool-strip">
+    <span class="fake-icon">↖</span>
+    <span class="fake-icon">✥</span>
+    <span class="fake-icon">◉</span>
+    <span class="fake-icon">◐</span>
+    <span class="fake-icon">⌁</span>
+    <span class="fake-icon">◌</span>
+    <span class="fake-icon">⌗</span>
+    <span class="fake-icon">↻</span>
+    <span class="fake-icon">⌕</span>
 
-    <section id="lesion-panel">
-      <canvas id="three-canvas"></canvas>
+    <div id="mode-switch">
+      <span class="selected">Doctor</span>
+      <span>Patient</span>
+    </div>
+  </div>
 
-      <div id="progress-overlay">
-        <div id="progress-track">
-          <div id="progress-bar"></div>
+  <main id="app-shell">
+    <aside id="left-sidebar">
+      <section class="side-section">
+        <div class="section-title">
+          <span>Patient Information</span>
+          <span>−</span>
         </div>
-      </div>
 
-      <aside
-        id="analysis-panel"
-        aria-live="polite"
-      >
-        <div id="analysis-kicker">
-          3D SEGMENTATION
+        <div class="section-body">
+          <div class="data-row"><span>Name</span><b>홍길동</b></div>
+          <div class="data-row"><span>ID</span><b>MN-2026-0001</b></div>
+          <div class="data-row"><span>Age/Sex</span><b>57/M</b></div>
+          <div class="data-row"><span>Case</span><b class="value-cyan">case_1774249109884</b></div>
+        </div>
+      </section>
+
+      <section class="side-section">
+        <div class="section-title">
+          <span>Risk & AI Diagnostic Summary</span>
+          <span>−</span>
         </div>
 
-        <h2 id="analysis-title">
-          Segmentation Analysis
-        </h2>
+        <div class="section-body">
+          <div>Status&nbsp; <b>Completed</b></div>
+          <br>
+          <div>Risk Assessment</div>
+          <div>Risk Level&nbsp; <b class="value-danger">HIGH (82%)</b></div>
+          <div>Confidence</div>
+          <div class="metric-line"><span></span></div>
 
-        <p id="analysis-summary"></p>
-
-        <div id="analysis-items"></div>
-
-        <div id="analysis-warning">
-          Demonstration analysis for visualization only.
-          Not a clinical diagnosis or surgical recommendation.
+          <div>Tumor Metrics</div>
+          <div>Size&nbsp; <b>32 mm</b></div>
+          <div>Volume&nbsp; <b>12.4 cc</b></div>
+          <div>Location&nbsp; <b>Frontal Lobe</b></div>
+          <br>
+          <div>AI Summary</div>
+          <div class="value-danger">▲ High probability tumor detected</div>
         </div>
-      </aside>
+      </section>
+
+      <section class="side-section">
+        <div class="section-title">
+          <span>Quantitative Tumor Metrics</span>
+          <span>−</span>
+        </div>
+
+        <div id="donut-area">
+          <div class="donut-card">
+            Tumor Volume Ratio
+            <div class="donut" style="--value: 4%;"><b>3.8%</b></div>
+          </div>
+          <div class="donut-card">
+            Risk Score
+            <div class="donut" style="--value: 82%;"><b>82%</b></div>
+          </div>
+          <div class="donut-card">
+            Detection Confidence
+            <div class="donut" style="--value: 92%;"><b>92%</b></div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <section id="viewer-area">
+      <canvas id="niivue-canvas"></canvas>
+
+      <div id="label-axial" class="view-label">Axial (T2)</div>
+      <div id="label-sagittal" class="view-label">Sagittal (T1)</div>
+      <div id="label-coronal" class="view-label">Coronal (T2)</div>
+      <div id="label-3d" class="view-label">3D Reconstruction</div>
+
+      <section id="lesion-panel">
+        <canvas id="three-canvas"></canvas>
+
+        <div id="progress-overlay">
+          <div id="progress-track">
+            <div id="progress-bar"></div>
+          </div>
+        </div>
+
+        <aside id="analysis-panel" aria-live="polite">
+          <div id="analysis-kicker">3D SEGMENTATION</div>
+          <h2 id="analysis-title">Segmentation Analysis</h2>
+          <p id="analysis-summary"></p>
+          <div id="analysis-items"></div>
+          <div id="analysis-warning">
+            Demonstration analysis for visualization only.
+            Not a clinical diagnosis or surgical recommendation.
+          </div>
+        </aside>
+      </section>
     </section>
+
+    <aside id="right-sidebar">
+      <section class="side-section">
+        <div class="section-title">
+          <span>Image Controls</span>
+          <span>−</span>
+        </div>
+
+        <div class="section-body">
+          <div class="slider-group">
+            <div class="slider-label"><span>Zoom</span><span>100%</span></div>
+            <div class="fake-slider"></div>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Brightness</span><span>50%</span></div>
+            <div class="fake-slider"></div>
+          </div>
+          <div class="slider-group">
+            <div class="slider-label"><span>Contrast</span><span>50%</span></div>
+            <div class="fake-slider"></div>
+          </div>
+          <div class="slider-label"><span>Current Slice</span><span class="value-cyan">1/100</span></div>
+        </div>
+      </section>
+
+      <section class="side-section">
+        <div class="section-title">
+          <span>Detection Settings</span>
+          <span>−</span>
+        </div>
+
+        <div class="section-body">
+          <div class="toggle-row"><span>Show Lesion Overlay</span><span class="fake-toggle"></span></div>
+          <div class="toggle-row"><span>Sync Slices</span><span class="fake-toggle"></span></div>
+        </div>
+      </section>
+
+      <section class="side-section">
+        <div class="section-title">
+          <span>Detection Summary</span>
+          <span>−</span>
+        </div>
+
+        <div class="section-body">
+          <div class="data-row"><span>Lesion</span><b class="value-cyan">YES</b></div>
+          <div class="data-row"><span>Confidence</span><b class="value-cyan">92%</b></div>
+          <div class="data-row"><span>Count</span><b>1</b></div>
+          <br>
+          <div class="data-row"><span>Tumor Area</span><b>18%</b></div>
+          <div class="data-row"><span>Region</span><b>Frontal Lobe</b></div>
+        </div>
+      </section>
+
+      <div class="action-stack">
+        <label class="action-label real" for="file-input">
+          ⇧ Upload MRI Data
+        </label>
+
+        <input
+          id="file-input"
+          type="file"
+          accept=".nii,.nii.gz,.gz"
+        />
+
+        <button
+          id="generate-button"
+          class="action-button real"
+          type="button"
+          disabled
+        >
+          ◉ Generate 3D
+        </button>
+
+        <button
+          id="atlas-button"
+          class="action-button real"
+          type="button"
+          disabled
+        >
+          ◈ Brain Function Map
+        </button>
+
+        <button class="action-button" type="button" disabled>
+          ⌘ Slice Sync
+        </button>
+
+        <button class="action-button" type="button" disabled>
+          ▣ Generate Report
+        </button>
+      </div>
+    </aside>
   </main>
+
+  <footer id="status-bar">
+    <span>⚙ Settings&nbsp;&nbsp;&nbsp;▧ Report</span>
+    <span id="status">Initializing viewer...</span>
+  </footer>
 
   <div id="popup">
     <div id="popup-content">
       <div id="popup-viewer"></div>
 
-      <button
-        id="popup-close"
-        type="button"
-        aria-label="Close"
-      >
-        ×
-      </button>
+      <button id="popup-close" type="button" aria-label="Close">×</button>
 
-      <aside
-        id="popup-analysis-panel"
-        aria-live="polite"
-      >
-        <div id="popup-analysis-kicker">
-          3D SEGMENTATION
-        </div>
-
-        <h2 id="popup-analysis-title">
-          Segmentation Analysis
-        </h2>
-
+      <aside id="popup-analysis-panel" aria-live="polite">
+        <div id="popup-analysis-kicker">3D SEGMENTATION</div>
+        <h2 id="popup-analysis-title">Segmentation Analysis</h2>
         <p id="popup-analysis-summary"></p>
-
         <div id="popup-analysis-items"></div>
-
         <div id="popup-analysis-warning">
           Demonstration analysis for visualization only.
           Not a clinical diagnosis or surgical recommendation.
