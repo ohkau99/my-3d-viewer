@@ -277,6 +277,91 @@
       background: #374151;
     }
 
+    #popup-analysis-panel {
+      position: absolute;
+      top: 68px;
+      right: 18px;
+      z-index: 1005;
+      width: min(370px, calc(100% - 36px));
+      max-height: calc(100% - 86px);
+      padding: 16px 17px;
+      overflow-y: auto;
+      border: 1px solid rgba(125, 211, 252, 0.46);
+      border-radius: 14px;
+      background: rgba(3, 10, 20, 0.91);
+      box-shadow:
+        0 16px 42px rgba(0, 0, 0, 0.52),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(10px);
+      pointer-events: auto;
+    }
+
+    #popup-analysis-panel.functional {
+      border-color: rgba(74, 222, 128, 0.52);
+    }
+
+    #popup-analysis-kicker {
+      margin-bottom: 6px;
+      color: #7dd3fc;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    #popup-analysis-panel.functional
+    #popup-analysis-kicker {
+      color: #86efac;
+    }
+
+    #popup-analysis-title {
+      margin: 0 0 10px;
+      color: #ffffff;
+      font-size: 17px;
+      line-height: 1.25;
+    }
+
+    #popup-analysis-summary {
+      margin: 0;
+      color: #dbeafe;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    #popup-analysis-items {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    #popup-analysis-panel .analysis-item {
+      border-left-color: #38bdf8;
+    }
+
+    #popup-analysis-panel.functional .analysis-item {
+      border-left-color: #4ade80;
+    }
+
+    #popup-analysis-warning {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      color: #94a3b8;
+      font-size: 10px;
+      line-height: 1.45;
+    }
+
+    @media (max-width: 760px) {
+      #popup-analysis-panel {
+        top: auto;
+        right: 12px;
+        bottom: 12px;
+        left: 12px;
+        width: auto;
+        max-height: 42%;
+      }
+    }
+
 
     #analysis-panel {
       position: absolute;
@@ -381,34 +466,7 @@
       line-height: 1.45;
     }
 
-    
-    #popup-analysis-panel {
-      position: absolute;
-      top: 14px;
-      right: 14px;
-      width: 340px;
-      max-height: calc(100% - 28px);
-      overflow-y: auto;
-      padding: 14px;
-      border-radius: 12px;
-      background: rgba(3,10,20,0.88);
-      border: 1px solid rgba(125,211,252,0.35);
-      z-index: 10;
-    }
-
-    #popup-analysis-panel h3 {
-      margin: 0 0 10px;
-      color: white;
-      font-size: 16px;
-    }
-
-    #popup-analysis-content {
-      color: #dbeafe;
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-@media (max-width: 900px) {
+    @media (max-width: 900px) {
       #toolbar {
         flex-wrap: wrap;
         padding: 10px;
@@ -520,6 +578,28 @@
       >
         ×
       </button>
+
+      <aside
+        id="popup-analysis-panel"
+        aria-live="polite"
+      >
+        <div id="popup-analysis-kicker">
+          3D SEGMENTATION
+        </div>
+
+        <h2 id="popup-analysis-title">
+          Segmentation Analysis
+        </h2>
+
+        <p id="popup-analysis-summary"></p>
+
+        <div id="popup-analysis-items"></div>
+
+        <div id="popup-analysis-warning">
+          Demonstration analysis for visualization only.
+          Not a clinical diagnosis or surgical recommendation.
+        </div>
+      </aside>
     </div>
   </div>
 
@@ -604,8 +684,20 @@
     const analysisItems =
       document.getElementById("analysis-items");
 
-    const popupAnalysisContent =
-      document.getElementById("popup-analysis-content");
+    const popupAnalysisPanel =
+      document.getElementById("popup-analysis-panel");
+
+    const popupAnalysisKicker =
+      document.getElementById("popup-analysis-kicker");
+
+    const popupAnalysisTitle =
+      document.getElementById("popup-analysis-title");
+
+    const popupAnalysisSummary =
+      document.getElementById("popup-analysis-summary");
+
+    const popupAnalysisItems =
+      document.getElementById("popup-analysis-items");
 
     let nv = null;
     let currentObjectUrl = null;
@@ -1051,28 +1143,11 @@
     /*
       분석 패널
     */
-    function setAnalysisContent({
-      mode,
-      kicker,
-      title,
-      summary,
+    function renderAnalysisItems(
+      target,
       items
-    }) {
-      analysisPanel.classList.toggle(
-        "functional",
-        mode === "functional"
-      );
-
-      analysisKicker.textContent =
-        kicker;
-
-      analysisTitle.textContent =
-        title;
-
-      analysisSummary.textContent =
-        summary;
-
-      analysisItems.innerHTML = "";
+    ) {
+      target.innerHTML = "";
 
       items.forEach(
         item => {
@@ -1105,17 +1180,64 @@
             description
           );
 
-          analysisItems.append(
+          target.append(
             element
           );
         }
+      );
+    }
+
+    function setAnalysisContent({
+      mode,
+      kicker,
+      title,
+      summary,
+      items
+    }) {
+      const isFunctional =
+        mode === "functional";
+
+      analysisPanel.classList.toggle(
+        "functional",
+        isFunctional
+      );
+
+      popupAnalysisPanel.classList.toggle(
+        "functional",
+        isFunctional
+      );
+
+      analysisKicker.textContent =
+        kicker;
+
+      popupAnalysisKicker.textContent =
+        kicker;
+
+      analysisTitle.textContent =
+        title;
+
+      popupAnalysisTitle.textContent =
+        title;
+
+      analysisSummary.textContent =
+        summary;
+
+      popupAnalysisSummary.textContent =
+        summary;
+
+      renderAnalysisItems(
+        analysisItems,
+        items
+      );
+
+      renderAnalysisItems(
+        popupAnalysisItems,
+        items
       );
 
       analysisPanel.classList.add(
         "visible"
       );
-
-      syncPopupAnalysis();
     }
 
     function showSegmentationAnalysis() {
@@ -1177,22 +1299,7 @@
       });
     }
 
-    
-    function syncPopupAnalysis() {
-      if (!popupAnalysisContent) return;
-
-      popupAnalysisContent.innerHTML =
-        `<strong>${analysisTitle.textContent}</strong><br><br>` +
-        analysisSummary.textContent +
-        "<br><br>" +
-        analysisItems.innerHTML
-          .replace(/<strong>/g,"<b>")
-          .replace(/<\/strong>/g,"</b><br>")
-          .replace(/<span>/g,"")
-          .replace(/<\/span>/g,"<br><br>");
-    }
-
-function hideAnalysisPanel() {
+    function hideAnalysisPanel() {
       analysisPanel.classList.remove(
         "visible",
         "functional"
@@ -2203,6 +2310,12 @@ function hideAnalysisPanel() {
       popupViewer.appendChild(
         threeCanvas
       );
+
+      if (atlasVisible) {
+        showFunctionalAnalysis();
+      } else {
+        showSegmentationAnalysis();
+      }
 
       window.setTimeout(
         () => {
