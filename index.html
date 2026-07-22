@@ -1,2738 +1,1525 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MedNeuro3D</title>
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  />
-
-  <title>MedNeuro3D</title>
-
-  <script type="importmap">
-  {
-    "imports": {
-      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
-      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
-    }
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
   }
-  </script>
-
-  <style>
-    * { box-sizing: border-box; }
-
-    :root {
-      --bg: #050b16;
-      --panel: #07111f;
-      --panel-2: #091829;
-      --line: #0c4f88;
-      --line-soft: rgba(26, 104, 164, 0.45);
-      --header: #07508c;
-      --cyan: #14c7e8;
-      --text: #e7f1fb;
-      --muted: #8da6bb;
-      --danger: #ff6f76;
-    }
-
-    html, body {
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      overflow: hidden;
-      background: var(--bg);
-      color: var(--text);
-      font-family: Arial, Helvetica, sans-serif;
-    }
-
-    body {
-      display: grid;
-      grid-template-rows: 34px 34px minmax(0, 1fr) 24px;
-    }
-
-    button, input { font: inherit; }
-
-    #menu-bar {
-      display: flex;
-      align-items: center;
-      padding: 0 12px;
-      background: #064d87;
-      border-bottom: 1px solid #063d69;
-      font-size: 12px;
-      color: #edf7ff;
-    }
-
-    #menu-left {
-      display: flex;
-      gap: 22px;
-    }
-
-    #brand {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 15px;
-      font-weight: 800;
-      letter-spacing: -0.3px;
-    }
-
-    #brand::before {
-      content: "M";
-      display: inline-grid;
-      place-items: center;
-      width: 19px;
-      height: 19px;
-      margin-right: 5px;
-      border: 1px solid rgba(255,255,255,.85);
-      clip-path: polygon(0 0, 50% 36%, 100% 0, 100% 100%, 50% 66%, 0 100%);
-      font-size: 0;
-      vertical-align: middle;
-    }
-
-    #window-icons {
-      margin-left: auto;
-      letter-spacing: 10px;
-      opacity: .9;
-    }
-
-    #tool-strip {
-      display: flex;
-      align-items: center;
-      gap: 11px;
-      padding: 0 12px;
-      background: #061321;
-      border-bottom: 1px solid #0a375c;
-      color: #8fb5d1;
-      font-size: 13px;
-    }
-
-    #tool-strip .fake-icon {
-      width: 13px;
-      text-align: center;
-      opacity: .85;
-    }
-
-    #mode-switch {
-      margin-left: auto;
-      display: flex;
-      border: 1px solid #0b4e84;
-      border-radius: 5px;
-      overflow: hidden;
-    }
-
-    #mode-switch span {
-      padding: 4px 14px;
-      font-size: 10px;
-      background: #081624;
-      color: #7790a3;
-    }
-
-    #mode-switch .selected {
-      background: #0a5fa2;
-      color: white;
-    }
-
-    #app-shell {
-      display: grid;
-      grid-template-columns: 190px minmax(0, 1fr) 190px;
-      min-height: 0;
-      background: #020812;
-    }
-
-    #left-sidebar,
-    #right-sidebar {
-      min-width: 0;
-      overflow: hidden;
-      background: #06101d;
-    }
-
-    #left-sidebar {
-      border-right: 1px solid #0b426e;
-    }
-
-    #right-sidebar {
-      border-left: 1px solid #0b426e;
-    }
-
-    .side-section {
-      border-bottom: 1px solid #0b426e;
-    }
-
-    .section-title {
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 7px;
-      background: #07558f;
-      color: #f1f8ff;
-      font-size: 10px;
-      font-weight: 700;
-    }
-
-    .section-body {
-      padding: 10px 8px 11px;
-      color: #b8c9d8;
-      font-size: 10px;
-      line-height: 1.55;
-    }
-
-    .data-row {
-      display: grid;
-      grid-template-columns: 48px 1fr;
-      gap: 4px;
-      margin-bottom: 5px;
-    }
-
-    .data-row span:first-child {
-      color: #738da2;
-    }
-
-    .value-cyan { color: var(--cyan); }
-    .value-danger { color: var(--danger); }
-
-    .metric-line {
-      height: 5px;
-      margin: 4px 0 8px;
-      background: #123149;
-      overflow: hidden;
-    }
-
-    .metric-line span {
-      display: block;
-      width: 92%;
-      height: 100%;
-      background: var(--cyan);
-    }
-
-    #donut-area {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 9px 5px;
-      padding: 10px 5px 12px;
-    }
-
-    .donut-card {
-      text-align: center;
-      color: #a9bdcc;
-      font-size: 8px;
-    }
-
-    .donut {
-      --value: 82%;
-      width: 62px;
-      height: 62px;
-      margin: 7px auto 0;
-      border-radius: 50%;
-      display: grid;
-      place-items: center;
-      background: conic-gradient(var(--cyan) var(--value), #133449 0);
-      position: relative;
-    }
-
-    .donut::before {
-      content: "";
-      position: absolute;
-      inset: 11px;
-      border-radius: 50%;
-      background: #07111f;
-    }
-
-    .donut b {
-      position: relative;
-      z-index: 1;
-      color: white;
-      font-size: 13px;
-    }
-
-    .slider-group {
-      margin-bottom: 12px;
-    }
-
-    .slider-label {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 5px;
-      color: #9db2c1;
-      font-size: 9px;
-    }
-
-    .fake-slider {
-      height: 4px;
-      background: #15364e;
-      position: relative;
-    }
-
-    .fake-slider::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0;
-      width: 48%;
-      height: 100%;
-      background: var(--cyan);
-    }
-
-    .fake-slider::after {
-      content: "";
-      position: absolute;
-      left: 47%;
-      top: 50%;
-      width: 9px;
-      height: 9px;
-      border-radius: 50%;
-      background: white;
-      transform: translate(-50%, -50%);
-    }
-
-    .toggle-row {
-      display: flex;
-      justify-content: space-between;
-      margin: 8px 0;
-      color: #9db2c1;
-      font-size: 9px;
-    }
-
-    .fake-toggle {
-      width: 22px;
-      height: 11px;
-      border-radius: 20px;
-      background: #16405c;
-      position: relative;
-    }
-
-    .fake-toggle::after {
-      content: "";
-      position: absolute;
-      width: 9px;
-      height: 9px;
-      top: 1px;
-      left: 12px;
-      border-radius: 50%;
-      background: var(--cyan);
-    }
-
-    #viewer-area {
-      position: relative;
-      min-width: 0;
-      min-height: 0;
-      overflow: hidden;
-      background: #020812;
-      border-left: 1px solid rgba(5, 67, 111, .6);
-      border-right: 1px solid rgba(5, 67, 111, .6);
-    }
-
-    #niivue-canvas {
-      position: absolute;
-      inset: 0;
-      display: block;
-      width: 100%;
-      height: 100%;
-      background: #020812;
-    }
-
-    .view-label {
-      position: absolute;
-      z-index: 7;
-      padding: 5px 7px;
-      color: #d7e7f2;
-      font-size: 9px;
-      pointer-events: none;
-    }
-
-    #label-axial { left: 5px; top: 4px; }
-    #label-sagittal { left: calc(50% + 5px); top: 4px; }
-    #label-coronal { left: 5px; top: calc(50% + 4px); }
-    #label-3d { left: calc(50% + 5px); top: calc(50% + 4px); }
-
-    #lesion-panel {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      right: 0;
-      bottom: 0;
-      z-index: 10;
-      overflow: hidden;
-      background: #071726;
-      border-top: 1px solid var(--line-soft);
-      border-left: 1px solid var(--line-soft);
-    }
-
-    #lesion-panel::before {
-      content: "3D visualization will appear here";
-      position: absolute;
-      inset: 0;
-      display: grid;
-      place-items: center;
-      color: #bed3e3;
-      font-size: 17px;
-      pointer-events: none;
-    }
-
-    #lesion-panel.model-loaded::before {
-      display: none;
-    }
-
-    #lesion-panel.model-loaded { cursor: pointer; }
-
-    #three-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      visibility: hidden;
-      background: #071726;
-      touch-action: none;
-    }
-
-    #lesion-panel.model-loaded #three-canvas {
-      visibility: visible;
-    }
-
-    #analysis-panel {
-      position: absolute;
-      left: 12px;
-      right: 12px;
-      bottom: 10px;
-      z-index: 30;
-      max-height: 42%;
-      padding: 10px 12px;
-      overflow-y: auto;
-      border: 1px solid rgba(32, 141, 211, .38);
-      background: rgba(3, 12, 22, .88);
-      opacity: 0;
-      visibility: hidden;
-      transform: translateY(8px);
-      transition: .25s ease;
-      pointer-events: none;
-    }
-
-    #analysis-panel.visible {
-      opacity: 1;
-      visibility: visible;
-      transform: translateY(0);
-    }
-
-    #analysis-kicker,
-    #popup-analysis-kicker {
-      color: var(--cyan);
-      font-size: 9px;
-      font-weight: 800;
-      letter-spacing: .1em;
-    }
-
-    #analysis-title,
-    #popup-analysis-title {
-      margin: 4px 0 6px;
-      font-size: 13px;
-    }
-
-    #analysis-summary,
-    #popup-analysis-summary {
-      margin: 0;
-      color: #b9cddd;
-      font-size: 10px;
-      line-height: 1.45;
-    }
-
-    #analysis-items,
-    #popup-analysis-items {
-      display: grid;
-      gap: 5px;
-      margin-top: 7px;
-    }
-
-    .analysis-item {
-      padding-left: 7px;
-      border-left: 2px solid var(--cyan);
-      font-size: 9px;
-      line-height: 1.35;
-    }
-
-    .analysis-item strong {
-      display: block;
-      color: white;
-    }
-
-    .analysis-item span {
-      color: #91aabd;
-    }
-
-    #analysis-warning,
-    #popup-analysis-warning {
-      margin-top: 7px;
-      color: #6f879a;
-      font-size: 8px;
-    }
-
-    #progress-overlay {
-      position: fixed;
-      inset: 0;
-      z-index: 900;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(2, 8, 18, .84);
-      pointer-events: none;
-    }
-
-    #progress-overlay.active { display: flex; }
-
-    #progress-overlay::before {
-      content: "Generating 3D Reconstruction...";
-      position: absolute;
-      margin-top: -92px;
-      color: #f1f7fc;
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    #progress-overlay::after {
-      content: "Analyzing MRI data and reconstructing 3D volume.";
-      position: absolute;
-      margin-top: 86px;
-      color: #8fa7b8;
-      font-size: 11px;
-    }
-
-    #progress-track {
-      width: 340px;
-      height: 10px;
-      border: 1px solid #173e5b;
-      background: #0b1c2b;
-    }
-
-    #progress-bar {
-      width: 0%;
-      height: 100%;
-      background: #b7c9ff;
-    }
-
-    .action-stack {
-      padding: 6px 6px 8px;
-      display: grid;
-      gap: 6px;
-    }
-
-    .action-button,
-    .action-label {
-      height: 39px;
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      border: 1px solid #173c61;
-      background: #07131f;
-      color: #6e8496;
-      font-size: 11px;
-      cursor: default;
-    }
-
-    .action-button.real,
-    .action-label.real {
-      border-color: #235fa0;
-      background: #3155bd;
-      color: white;
-      cursor: pointer;
-    }
-
-    .action-button.real:hover,
-    .action-label.real:hover {
-      filter: brightness(1.1);
-    }
-
-    .action-button:disabled {
-      opacity: .42;
-      cursor: default;
-    }
-
-    #atlas-button.active {
-      background: #0c79a8;
-      border-color: #18c9e9;
-    }
-
-    #file-input { display: none; }
-
-    #status-bar {
-      display: flex;
-      align-items: center;
-      padding: 0 10px;
-      background: #064d87;
-      color: #c8deed;
-      font-size: 9px;
-      border-top: 1px solid #063b67;
-    }
-
-    #status {
-      margin-left: auto;
-      color: #cfefff;
-    }
-
-    #popup {
-      position: fixed;
-      inset: 0;
-      z-index: 1000;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      background: rgba(0, 8, 16, .88);
-    }
-
-    #popup.active { display: flex; }
-
-    #popup-content {
-      position: relative;
-      width: 74vw;
-      height: 74vh;
-      min-width: 760px;
-      min-height: 500px;
-      max-width: 1180px;
-      max-height: 800px;
-      overflow: hidden;
-      background: #06101d;
-      border: 1px solid #0b5b94;
-      box-shadow: 0 20px 70px rgba(0,0,0,.7);
-    }
-
-    #popup-viewer {
-      position: absolute;
-      inset: 0 360px 0 0;
-      background: #020812;
-    }
-
-    #popup.active #three-canvas {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      visibility: visible;
-      background: #020812;
-      cursor: grab;
-    }
-
-    #popup-close {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      z-index: 1020;
-      width: 30px;
-      height: 30px;
-      border: 0;
-      background: transparent;
-      color: white;
-      font-size: 24px;
-      cursor: pointer;
-    }
-
-    #popup-analysis-panel {
-      position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      z-index: 1005;
-      width: 360px;
-      padding: 64px 18px 18px;
-      overflow-y: auto;
-      border-left: 1px solid #0b4e82;
-      background: #071321;
-    }
-
-    #popup-analysis-panel.functional {
-      border-left-color: #148ba3;
-    }
-
-    @media (max-width: 1050px) {
-      #app-shell {
-        grid-template-columns: 160px minmax(0, 1fr) 170px;
-      }
-
-      #popup-content {
-        width: 92vw;
-        min-width: 0;
-      }
-    }
-  </style>
+}
+</script>
+
+<style>
+* { box-sizing: border-box; }
+
+:root {
+  --bg:          #050d18;
+  --shell:       #061120;
+  --panel:       #071627;
+  --panel-2:     #0a1e33;
+  --menubar:     #0b2745;
+  --toolstrip:   #061426;
+  --sect:        #0e5091;
+  --line:        #10456f;
+  --line-soft:   #0d3a5e;
+  --viewline:    #17548a;
+  --cyan:        #29c3de;
+  --cyan-dim:    #1a6f88;
+  --red:         #ff5b6b;
+  --text:        #e6f0fa;
+  --muted:       #8ba3ba;
+  --muted-2:     #5f7a94;
+  --btn:         #2f57c4;
+  --btn-hi:      #3a63d6;
+  --btn-off:     #0a1a2c;
+  --btn-off-tx:  #47617b;
+  --font: "Segoe UI", "Inter", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  margin: 0; overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+body { display: grid; grid-template-rows: 34px 32px minmax(0,1fr) 23px; }
+button, input { font: inherit; }
+
+/* ============================ LOGIN ============================ */
+#login {
+  position: fixed; inset: 0; z-index: 4000;
+  display: grid; align-items: center;
+  background: #070f1e;
+  overflow: hidden;
+}
+#login.hidden { display: none; }
+#login-art { position: absolute; inset: 0; width: 100%; height: 100%; }
+#login-inner {
+  position: relative; z-index: 2;
+  margin-left: 11.5vw; width: 380px; max-width: 84vw;
+}
+#login-brand {
+  display: flex; align-items: center; gap: 11px;
+  font-size: 33px; font-weight: 700; letter-spacing: -.6px; color: #fff;
+}
+.logo-mark {
+  display: inline-block; width: 26px; height: 22px; flex: none;
+  background: currentColor;
+  clip-path: polygon(0 0, 50% 38%, 100% 0, 100% 100%, 50% 62%, 0 100%);
+}
+#login-kicker {
+  margin: 14px 0 0; font-size: 19px; font-weight: 500;
+  letter-spacing: .01em; color: #9fc3e8;
+}
+#login-desc {
+  margin: 15px 0 0; max-width: 360px;
+  font-size: 14.5px; line-height: 1.62; color: #a9bed3;
+}
+.login-field {
+  margin-top: 14px; position: relative;
+}
+.login-field input {
+  width: 100%; height: 46px; padding: 0 42px 0 15px;
+  color: #dfeaf6; font-size: 14px;
+  background: #0c1a2e; border: 1px solid #1b3a5c; border-radius: 3px;
+  outline: none;
+}
+.login-field input::placeholder { color: #5f7a94; }
+.login-field input:focus { border-color: #2f6da8; }
+#eye {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  width: 22px; height: 22px; border: 0; background: none;
+  color: #6e8aa6; cursor: pointer; padding: 0;
+}
+#login-btn {
+  margin-top: 18px; width: 100%; height: 47px;
+  border: 0; border-radius: 3px;
+  background: #0e4a86; color: #fff; font-size: 14.5px; font-weight: 600;
+  cursor: pointer;
+}
+#login-btn:hover { background: #12589c; }
+#login-hint { margin-top: 12px; font-size: 11px; color: #5c7590; }
+
+/* ============================ CHROME ============================ */
+#menu-bar {
+  position: relative; display: flex; align-items: center;
+  padding: 0 14px; background: var(--menubar);
+  border-bottom: 1px solid #082036;
+  font-size: 12.5px; color: #e8f2fb;
+}
+#menu-left { display: flex; gap: 26px; }
+#menu-left span { cursor: default; opacity: .95; }
+#brand {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 700; letter-spacing: -.2px;
+}
+#brand .logo-mark { width: 15px; height: 13px; }
+#win { margin-left: auto; display: flex; gap: 17px; color: #cfe2f2; font-size: 12px; }
+
+#tool-strip {
+  display: flex; align-items: center; gap: 13px;
+  padding: 0 14px; background: var(--toolstrip);
+  border-bottom: 1px solid #0a3050;
+  color: #7fa5c6; font-size: 12px;
+}
+#tool-strip i { font-style: normal; width: 13px; text-align: center; opacity: .8; }
+#mode-switch {
+  margin-left: auto; display: flex;
+  border: 1px solid #164d7f; border-radius: 4px; overflow: hidden;
+}
+#mode-switch button {
+  padding: 3px 17px; border: 0; font-size: 10.5px;
+  background: #08192b; color: #6e8aa3; cursor: pointer;
+}
+#mode-switch button.on { background: #1565c0; color: #fff; }
+
+#status-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 12px; background: var(--menubar);
+  border-top: 1px solid #082036; color: #bcd6ec; font-size: 10px;
+}
+#status { margin-left: auto; color: #cfeeff; }
+
+/* ============================ SHELL ============================ */
+#app-shell {
+  display: grid; grid-template-columns: 252px minmax(0,1fr) 252px;
+  min-height: 0; background: var(--shell);
+}
+#left-sidebar, #right-sidebar {
+  min-width: 0; display: flex; flex-direction: column;
+  background: var(--panel); overflow-y: auto; overflow-x: hidden;
+}
+#left-sidebar::-webkit-scrollbar, #right-sidebar::-webkit-scrollbar { width: 6px; }
+#left-sidebar::-webkit-scrollbar-thumb, #right-sidebar::-webkit-scrollbar-thumb { background: #14395c; }
+#left-sidebar  { border-right: 1px solid var(--line); }
+#right-sidebar { border-left: 1px solid var(--line); }
+.side-section { border-bottom: 1px solid var(--line); }
+.side-section.grow { flex: 1; min-height: 0; }
+.section-title {
+  height: 27px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 9px; background: var(--sect); color: #f2f9ff;
+  font-size: 10.5px; font-weight: 700; letter-spacing: .01em;
+}
+.section-title em { font-style: normal; opacity: .8; cursor: default; }
+.section-body { padding: 11px 11px 13px; color: #b6c9da; font-size: 10.5px; line-height: 1.5; }
+
+.kv { display: flex; gap: 7px; margin-bottom: 7px; }
+.kv > i { font-style: normal; color: #7791a8; min-width: 46px; }
+.kv > b { font-weight: 700; color: #e4eef8; }
+.group-label { margin: 11px 0 6px; color: #cfe0ef; font-weight: 700; font-size: 10.5px; }
+.group-label:first-child { margin-top: 0; }
+.dim { color: #5d768e; }
+.v-cyan { color: var(--cyan); }
+.v-red  { color: var(--red); }
+
+.bar { height: 6px; flex: 1; background: #12314a; border-radius: 1px; overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0%; background: var(--cyan); transition: width .5s ease; }
+.bar-row { display: flex; align-items: center; gap: 8px; margin: 3px 0 8px; }
+.bar-row > u { text-decoration: none; color: var(--cyan); font-size: 9.5px; min-width: 26px; text-align: right; }
+
+#ai-flag { display: flex; gap: 5px; align-items: baseline; }
+
+#donuts { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 6px; padding: 11px 8px 14px; }
+.donut-card { text-align: center; color: #a7bccd; font-size: 9px; }
+.donut {
+  --value: 0%;
+  width: 66px; height: 66px; margin: 9px auto 0;
+  border-radius: 50%; display: grid; place-items: center; position: relative;
+  background: conic-gradient(var(--cyan) var(--value), #12324a 0);
+}
+.donut::before { content:""; position: absolute; inset: 10px; border-radius: 50%; background: var(--panel); }
+.donut b { position: relative; z-index: 1; color: #fff; font-size: 14px; font-weight: 700; }
+
+/* sliders / toggles */
+.sl { margin-bottom: 13px; }
+.sl-top { display: flex; justify-content: space-between; margin-bottom: 6px; color: #a2b7c8; font-size: 10px; }
+.sl-top b { color: #dcebf8; font-weight: 600; }
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  width: 100%; height: 4px; border-radius: 2px; outline: none;
+  background: linear-gradient(var(--cyan),var(--cyan)) 0/var(--fill,0%) 100% no-repeat, #143550;
+  cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 11px; height: 11px; border-radius: 50%;
+  background: #fff; border: 0; cursor: pointer;
+}
+input[type=range]::-moz-range-thumb { width: 11px; height: 11px; border: 0; border-radius: 50%; background: #fff; }
+input[type=range]:disabled { opacity: .55; cursor: default; }
+
+.tg { display: flex; justify-content: space-between; align-items: center; margin: 11px 0; color: #a2b7c8; font-size: 10px; }
+.sw { width: 26px; height: 13px; border-radius: 10px; background: #16405c; position: relative; cursor: pointer; transition: background .18s; }
+.sw::after { content:""; position: absolute; width: 11px; height: 11px; top: 1px; left: 1px; border-radius: 50%; background: #7f97ab; transition: .18s; }
+.sw.on { background: #0b6d95; }
+.sw.on::after { left: 14px; background: var(--cyan); }
+.sw.off-disabled { opacity: .45; pointer-events: none; }
+
+/* action buttons */
+#actions { margin-top: auto; padding: 8px 8px 10px; display: grid; gap: 7px; }
+.act {
+  height: 40px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid #14304c; border-radius: 3px;
+  background: var(--btn-off); color: var(--btn-off-tx);
+  font-size: 11.5px; font-weight: 600; cursor: default;
+}
+.act.enabled { cursor: pointer; color: #9db8d0; border-color: #1d4a76; }
+.act.enabled:hover { background: #0e2440; }
+.act.primary { background: var(--btn); border-color: #3963cf; color: #fff; }
+.act.primary:hover { background: var(--btn-hi); }
+.act svg { width: 14px; height: 14px; flex: none; }
+#file-input { display: none; }
+
+/* ============================ VIEWER ============================ */
+#viewer-area { position: relative; min-width: 0; min-height: 0; overflow: hidden; background: #030a14; }
+#niivue-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; background: #030a14; }
+#panel-grid {
+  position: absolute; inset: 0; z-index: 4;
+  display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 5px;
+  padding: 4px; pointer-events: none;
+}
+.vpanel { position: relative; border: 1px solid var(--viewline); min-width: 0; min-height: 0; }
+.vpanel > label {
+  position: absolute; left: 8px; top: 6px; z-index: 3;
+  color: #cfe3f4; font-size: 10.5px; letter-spacing: .01em;
+}
+#p4 { background: #050f1c; pointer-events: auto; }
+
+#empty3d {
+  position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 8px;
+  color: #b9d0e2; text-align: center; pointer-events: none;
+}
+#empty3d svg { width: 46px; height: 46px; opacity: .5; }
+#empty3d .t1 { font-size: 16px; color: #cfe2f2; }
+#empty3d .t2 { font-size: 11px; color: #7e9ab2; line-height: 1.5; }
+#p4.loaded #empty3d { display: none; }
+#p4.loaded { cursor: zoom-in; }
+
+/* ============================ 3D STAGE ============================ */
+#stage { position: absolute; inset: 0; overflow: hidden; }
+#three-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; background: transparent; }
+#p4:not(.loaded) #stage { visibility: hidden; }
+
+#callouts { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+#callouts .lead { stroke: #eaf4ff; stroke-width: 1; fill: none; opacity: .92; }
+#callouts .dot   { fill: #ffffff; }
+#callouts text   { fill: #f0f7ff; font-family: var(--font); font-size: 12px; }
+
+#overlay-ui { position: absolute; inset: 0; pointer-events: none; }
+
+#chips {
+  position: absolute; left: 6%; bottom: 20%;
+  display: flex; border: 1px solid #2a5a80; border-radius: 8px;
+  background: rgba(6,17,29,.72); backdrop-filter: blur(2px);
+}
+#chips .chip { padding: 9px 17px; border-right: 1px solid #21455f; }
+#chips .chip:last-child { border-right: 0; }
+#chips .chip .ct { display: flex; align-items: center; gap: 5px; color: #a9c2d6; font-size: 10.5px; }
+#chips .chip .ct svg { width: 12px; height: 12px; }
+#chips .chip .cv { margin-top: 3px; color: #fff; font-size: 21px; font-weight: 600; letter-spacing: -.3px; }
+#chips .chip .cv small { font-size: 10.5px; font-weight: 400; color: #b9cddf; margin-left: 2px; }
+
+#note {
+  position: absolute; left: 6%; bottom: 7%;
+  display: flex; align-items: flex-start; gap: 11px; max-width: 62%;
+}
+#note .nicon {
+  width: 27px; height: 27px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; background: #123a54; color: var(--cyan);
+}
+#note .nicon svg { width: 15px; height: 15px; }
+#note .ntx { font-size: 11.5px; line-height: 1.5; color: #c4d8e8; }
+#note .ntx a { display: block; margin-top: 3px; color: #4fbfe0; text-decoration: none; pointer-events: auto; cursor: pointer; }
+#note .ntx a:hover { text-decoration: underline; }
+
+/* the inline 3-D panel is roughly half the popup width: scale the overlays down */
+#p4 #chips      { transform: scale(.60); transform-origin: left bottom; bottom: 22%; left: 3%; }
+#p4 #note       { transform: scale(.72); transform-origin: left bottom; max-width: 84%; left: 3%; bottom: 5%; }
+#p4 #legend     { transform: scale(.72); transform-origin: left bottom; left: 2%;  bottom: 6%; }
+#p4 #atlas-note { transform: scale(.72); transform-origin: right bottom; right: 2%; bottom: 6%; }
+
+#legend {
+  position: absolute; left: 5%; bottom: 12%;
+  display: none; padding: 11px 14px;
+  border: 1px solid #2a5a80; border-radius: 5px;
+  background: rgba(6,17,29,.82);
+}
+#legend .lg { display: flex; align-items: center; gap: 9px; margin: 5px 0; font-size: 10.5px; color: #d3e3f0; }
+#legend .sw2 { width: 13px; height: 13px; border-radius: 2px; flex: none; }
+
+#atlas-note {
+  position: absolute; right: 6%; bottom: 11%;
+  display: none; padding: 9px 12px; max-width: 230px;
+  border: 1px solid #24506f; border-radius: 4px;
+  background: rgba(6,17,29,.82);
+  font-size: 10px; line-height: 1.45; color: #a9c1d4;
+}
+#stage.fn #legend, #stage.fn #atlas-note { display: block; }
+#stage.fn #chips, #stage.fn #note { display: none; }
+
+/* ============================ PROGRESS ============================ */
+#progress {
+  position: fixed; inset: 0; z-index: 900;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(3,9,18,.62);
+}
+#progress.on { display: flex; }
+#progress .box {
+  width: 520px; max-width: 84vw; padding: 42px 44px;
+  background: #0a1626; border: 1px solid #1b4266;
+  box-shadow: 0 24px 70px rgba(0,0,0,.6);
+  text-align: center;
+}
+#progress .ptitle { color: #f2f8fd; font-size: 17px; font-weight: 700; }
+#progress .prow { display: flex; align-items: center; gap: 16px; margin: 26px 0; }
+#progress .ptrack { flex: 1; height: 9px; border-radius: 5px; background: #16324b; overflow: hidden; }
+#progress .pbar { width: 0%; height: 100%; background: #c3d0ff; border-radius: 5px; }
+#progress .ppct { color: #fff; font-size: 17px; font-weight: 700; min-width: 46px; text-align: right; }
+#progress .psub { color: #8fa8bc; font-size: 12px; }
+
+/* ============================ POPUP ============================ */
+#popup {
+  position: fixed; inset: 0; z-index: 1000;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(2,8,16,.72);
+}
+#popup.on { display: flex; }
+#popup-box {
+  position: relative; width: 78vw; height: 76vh;
+  min-width: 620px; max-width: 1240px;
+  background: #050f1c; border: 1px solid #2b6fa8;
+  box-shadow: 0 24px 80px rgba(0,0,0,.7); overflow: hidden;
+}
+#popup-close {
+  position: absolute; top: 14px; right: 14px; z-index: 1020;
+  width: 30px; height: 30px; border: 0; background: none;
+  color: #fff; font-size: 25px; line-height: 1; cursor: pointer; opacity: .85;
+}
+#popup-close:hover { opacity: 1; }
+
+/* ============================ REPORT ============================ */
+#report { position: fixed; inset: 0; z-index: 1100; display: none; align-items: center; justify-content: center; background: rgba(2,8,16,.8); }
+#report.on { display: flex; }
+#report-box { width: 640px; max-width: 92vw; max-height: 86vh; overflow: auto; background: #0a1626; border: 1px solid #1d4a75; }
+#report-head { display: flex; align-items: center; padding: 13px 18px; background: var(--sect); font-size: 12px; font-weight: 700; }
+#report-head button { margin-left: auto; border: 0; background: none; color: #fff; font-size: 20px; cursor: pointer; }
+#report-body { padding: 20px 22px; font-size: 12px; line-height: 1.7; color: #c7d9e8; }
+#report-body h4 { margin: 18px 0 7px; color: #fff; font-size: 12px; }
+#report-body h4:first-child { margin-top: 0; }
+#report-body table { width: 100%; border-collapse: collapse; }
+#report-body td { padding: 4px 0; border-bottom: 1px solid #14304c; }
+#report-body td:first-child { color: #8ba3ba; width: 45%; }
+#report-body .warn { margin-top: 18px; padding-top: 12px; border-top: 1px solid #14304c; color: #7e97ac; font-size: 10.5px; }
+
+@media (max-width: 1180px) {
+  #app-shell { grid-template-columns: 210px minmax(0,1fr) 210px; }
+  #popup-box { width: 94vw; min-width: 0; }
+}
+</style>
 </head>
-
 <body>
-  <header id="menu-bar">
-    <div id="menu-left">
-      <span>File</span>
-      <span>Edit</span>
-      <span>View</span>
-      <span>Tests</span>
-      <span>Help</span>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login">
+  <svg id="login-art" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"></svg>
+  <div id="login-inner">
+    <div id="login-brand"><span class="logo-mark"></span>MedNeuro3D</div>
+    <div id="login-kicker">AI-POWERED BRAIN TUMOR INSIGHTS</div>
+    <p id="login-desc">MedNeuro3D is an AI-assisted brain imaging platform supporting MRI-based tumor visualization, quantitative analysis, and 3D reconstruction.</p>
+    <div class="login-field"><input id="login-id" type="text" placeholder="ID" autocomplete="off" /></div>
+    <div class="login-field">
+      <input id="login-pw" type="password" placeholder="Password" autocomplete="off" />
+      <button id="eye" type="button" aria-label="Show password">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M1.6 12S5.2 5.2 12 5.2 22.4 12 22.4 12 18.8 18.8 12 18.8 1.6 12 1.6 12z"/><circle cx="12" cy="12" r="3.1"/></svg>
+      </button>
     </div>
-
-    <div id="brand">MedNeuro3D</div>
-
-    <div id="window-icons">− □ ×</div>
-  </header>
-
-  <div id="tool-strip">
-    <span class="fake-icon">↖</span>
-    <span class="fake-icon">✥</span>
-    <span class="fake-icon">◉</span>
-    <span class="fake-icon">◐</span>
-    <span class="fake-icon">⌁</span>
-    <span class="fake-icon">◌</span>
-    <span class="fake-icon">⌗</span>
-    <span class="fake-icon">↻</span>
-    <span class="fake-icon">⌕</span>
-
-    <div id="mode-switch">
-      <span class="selected">Doctor</span>
-      <span>Patient</span>
-    </div>
+    <button id="login-btn" type="button">Log In</button>
+    <div id="login-hint">Demonstration build &mdash; press Log In to continue.</div>
   </div>
+</div>
 
-  <main id="app-shell">
-    <aside id="left-sidebar">
-      <section class="side-section">
-        <div class="section-title">
-          <span>Patient Information</span>
-          <span>−</span>
-        </div>
+<!-- ===================== MENU BAR ===================== -->
+<header id="menu-bar">
+  <div id="menu-left"><span>File</span><span>Edit</span><span>View</span><span>Tests</span><span>Help</span></div>
+  <div id="brand"><span class="logo-mark"></span>MedNeuro3D</div>
+  <div id="win"><span>&#8722;</span><span>&#9633;</span><span>&#10005;</span></div>
+</header>
 
-        <div class="section-body">
-          <div class="data-row"><span>Name</span><b>홍길동</b></div>
-          <div class="data-row"><span>ID</span><b>MN-2026-0001</b></div>
-          <div class="data-row"><span>Age/Sex</span><b>57/M</b></div>
-          <div class="data-row"><span>Case</span><b class="value-cyan">case_1774249109884</b></div>
-        </div>
-      </section>
+<!-- ===================== TOOL STRIP ===================== -->
+<div id="tool-strip">
+  <i>&#10230;</i><i>&#10021;</i><i>&#9673;</i><i>&#9682;</i><i>&#9711;</i><i>&#9681;</i><i>&#9634;</i>
+  <i>&#8942;</i><i>&#8617;</i><i>&#9998;</i><i>&#8635;</i><i>&#8646;</i><i>&#8981;</i><i>&#8615;</i>
+  <div id="mode-switch">
+    <button id="mode-doctor" class="on" type="button">Doctor</button>
+    <button id="mode-patient" type="button">Patient</button>
+  </div>
+</div>
 
-      <section class="side-section">
-        <div class="section-title">
-          <span>Risk & AI Diagnostic Summary</span>
-          <span>−</span>
-        </div>
+<!-- ===================== APP SHELL ===================== -->
+<main id="app-shell">
 
-        <div class="section-body">
-          <div>Status&nbsp; <b>Completed</b></div>
-          <br>
-          <div>Risk Assessment</div>
-          <div>Risk Level&nbsp; <b class="value-danger">HIGH (82%)</b></div>
-          <div>Confidence</div>
-          <div class="metric-line"><span></span></div>
-
-          <div>Tumor Metrics</div>
-          <div>Size&nbsp; <b>32 mm</b></div>
-          <div>Volume&nbsp; <b>12.4 cc</b></div>
-          <div>Location&nbsp; <b>Frontal Lobe</b></div>
-          <br>
-          <div>AI Summary</div>
-          <div class="value-danger">▲ High probability tumor detected</div>
-        </div>
-      </section>
-
-      <section class="side-section">
-        <div class="section-title">
-          <span>Quantitative Tumor Metrics</span>
-          <span>−</span>
-        </div>
-
-        <div id="donut-area">
-          <div class="donut-card">
-            Tumor Volume Ratio
-            <div class="donut" style="--value: 4%;"><b>3.8%</b></div>
-          </div>
-          <div class="donut-card">
-            Risk Score
-            <div class="donut" style="--value: 82%;"><b>82%</b></div>
-          </div>
-          <div class="donut-card">
-            Detection Confidence
-            <div class="donut" style="--value: 92%;"><b>92%</b></div>
-          </div>
-        </div>
-      </section>
-    </aside>
-
-    <section id="viewer-area">
-      <canvas id="niivue-canvas"></canvas>
-
-      <div id="label-axial" class="view-label">Axial </div>
-      <div id="label-sagittal" class="view-label">Sagittal </div>
-      <div id="label-coronal" class="view-label">Coronal </div>
-      <div id="label-3d" class="view-label">3D Reconstruction</div>
-
-      <section id="lesion-panel">
-        <canvas id="three-canvas"></canvas>
-
-        <div id="progress-overlay">
-          <div id="progress-track">
-            <div id="progress-bar"></div>
-          </div>
-        </div>
-
-        <aside id="analysis-panel" aria-live="polite">
-          <div id="analysis-kicker">3D SEGMENTATION</div>
-          <h2 id="analysis-title">Segmentation Analysis</h2>
-          <p id="analysis-summary"></p>
-          <div id="analysis-items"></div>
-          <div id="analysis-warning">
-            Demonstration analysis for visualization only.
-            Not a clinical diagnosis or surgical recommendation.
-          </div>
-        </aside>
-      </section>
+  <aside id="left-sidebar">
+    <section class="side-section">
+      <div class="section-title"><span>Patient Information</span><em>&#8722;</em></div>
+      <div class="section-body">
+        <div class="kv"><i>Name</i><b id="f-name">-</b></div>
+        <div class="kv"><i>ID</i><b id="f-id">-</b></div>
+        <div class="kv"><i>Age/Sex</i><b id="f-age">-</b></div>
+        <div class="kv"><i>Case</i><b id="f-case" class="v-cyan">-</b></div>
+      </div>
     </section>
 
-    <aside id="right-sidebar">
-      <section class="side-section">
-        <div class="section-title">
-          <span>Image Controls</span>
-          <span>−</span>
-        </div>
-
-        <div class="section-body">
-          <div class="slider-group">
-            <div class="slider-label"><span>Zoom</span><span>100%</span></div>
-            <div class="fake-slider"></div>
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Brightness</span><span>50%</span></div>
-            <div class="fake-slider"></div>
-          </div>
-          <div class="slider-group">
-            <div class="slider-label"><span>Contrast</span><span>50%</span></div>
-            <div class="fake-slider"></div>
-          </div>
-          <div class="slider-label"><span>Current Slice</span><span class="value-cyan">1/100</span></div>
-        </div>
-      </section>
-
-      <section class="side-section">
-        <div class="section-title">
-          <span>Detection Settings</span>
-          <span>−</span>
-        </div>
-
-        <div class="section-body">
-          <div class="toggle-row"><span>Show Lesion Overlay</span><span class="fake-toggle"></span></div>
-          <div class="toggle-row"><span>Sync Slices</span><span class="fake-toggle"></span></div>
-        </div>
-      </section>
-
-      <section class="side-section">
-        <div class="section-title">
-          <span>Detection Summary</span>
-          <span>−</span>
-        </div>
-
-        <div class="section-body">
-          <div class="data-row"><span>Lesion</span><b class="value-cyan">YES</b></div>
-          <div class="data-row"><span>Confidence</span><b class="value-cyan">92%</b></div>
-          <div class="data-row"><span>Count</span><b>1</b></div>
-          <br>
-          <div class="data-row"><span>Tumor Area</span><b>18%</b></div>
-          <div class="data-row"><span>Region</span><b>Frontal Lobe</b></div>
-        </div>
-      </section>
-
-      <div class="action-stack">
-        <label class="action-label real" for="file-input">
-          ⇧ Upload MRI Data
-        </label>
-
-        <input
-          id="file-input"
-          type="file"
-          accept=".nii,.nii.gz,.gz"
-        />
-
-        <button
-          id="generate-button"
-          class="action-button real"
-          type="button"
-          disabled
-        >
-          ◉ Generate 3D
-        </button>
-
-        <button
-          id="atlas-button"
-          class="action-button real"
-          type="button"
-          disabled
-        >
-          ◈ Brain Function Map
-        </button>
-
-        <button class="action-button" type="button" disabled>
-          ⌘ Slice Sync
-        </button>
-
-        <button class="action-button" type="button" disabled>
-          ▣ Generate Report
-        </button>
+    <section class="side-section">
+      <div class="section-title"><span>Risk &amp; AI Diagnostic Summary</span><em>&#8722;</em></div>
+      <div class="section-body">
+        <div class="kv"><i>Status</i><b id="f-status">-</b></div>
+        <div class="group-label">Risk Assessment</div>
+        <div class="kv"><i>Risk Level</i><b id="f-risk">-</b></div>
+        <div class="kv" style="margin-bottom:0"><i>Confidence</i></div>
+        <div class="bar-row"><span class="bar"><span id="f-confbar"></span></span><u id="f-conf"></u></div>
+        <div class="group-label">Tumor Metrics</div>
+        <div class="kv"><i>Size</i><b id="f-size">-</b></div>
+        <div class="kv"><i>Volume</i><b id="f-vol">-</b></div>
+        <div class="kv"><i>Location</i><b id="f-loc">-</b></div>
+        <div class="group-label">AI Summary</div>
+        <div id="ai-flag"><span id="f-ai">-</span></div>
       </div>
-    </aside>
-  </main>
+    </section>
 
-  <footer id="status-bar">
-    <span>⚙ Settings&nbsp;&nbsp;&nbsp;▧ Report</span>
-    <span id="status">Initializing viewer...</span>
-  </footer>
+    <section class="side-section grow">
+      <div class="section-title"><span>Quantitative Tumor Metrics</span><em>&#8722;</em></div>
+      <div id="donuts">
+        <div class="donut-card">Tumor Volume Ratio<div class="donut" id="d1"><b>0%</b></div></div>
+        <div class="donut-card">Risk Score<div class="donut" id="d2"><b>0%</b></div></div>
+        <div class="donut-card">Detection Confidence<div class="donut" id="d3"><b>0%</b></div></div>
+      </div>
+    </section>
+  </aside>
 
-  <div id="popup">
-    <div id="popup-content">
-      <div id="popup-viewer"></div>
-
-      <button id="popup-close" type="button" aria-label="Close">×</button>
-
-      <aside id="popup-analysis-panel" aria-live="polite">
-        <div id="popup-analysis-kicker">3D SEGMENTATION</div>
-        <h2 id="popup-analysis-title">Segmentation Analysis</h2>
-        <p id="popup-analysis-summary"></p>
-        <div id="popup-analysis-items"></div>
-        <div id="popup-analysis-warning">
-          Demonstration analysis for visualization only.
-          Not a clinical diagnosis or surgical recommendation.
+  <section id="viewer-area">
+    <canvas id="niivue-canvas"></canvas>
+    <div id="panel-grid">
+      <div class="vpanel"><label id="lb1">Axial</label></div>
+      <div class="vpanel"><label id="lb2">Sagittal</label></div>
+      <div class="vpanel"><label id="lb3">Coronal</label></div>
+      <div class="vpanel" id="p4">
+        <label id="lb4">3D Reconstruction</label>
+        <div id="stage">
+          <canvas id="three-canvas"></canvas>
+          <svg id="callouts"></svg>
+          <div id="overlay-ui">
+            <div id="chips">
+              <div class="chip">
+                <div class="ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M7 12h10"/></svg>Size</div>
+                <div class="cv" id="c-size">32<small>mm</small></div>
+              </div>
+              <div class="chip">
+                <div class="ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l8 4.6v8.8L12 21l-8-4.6V7.6z"/><path d="M12 12l8-4.6M12 12v9M12 12L4 7.4"/></svg>Volume</div>
+                <div class="cv" id="c-vol">12.4<small>cc</small></div>
+              </div>
+              <div class="chip">
+                <div class="ct"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7.5 3v6c0 5-3.2 8-7.5 9-4.3-1-7.5-4-7.5-9V6z"/></svg>Confidence</div>
+                <div class="cv" id="c-conf">92<small>%</small></div>
+              </div>
+            </div>
+            <div id="note">
+              <div class="nicon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 4a3 3 0 0 0-3 3 2.6 2.6 0 0 0-1.6 4.7A2.8 2.8 0 0 0 6 16.6 2.8 2.8 0 0 0 9 20a2.5 2.5 0 0 0 3-2V6a2.5 2.5 0 0 0-3-2z"/><path d="M15 4a3 3 0 0 1 3 3 2.6 2.6 0 0 1 1.6 4.7A2.8 2.8 0 0 1 18 16.6 2.8 2.8 0 0 1 15 20a2.5 2.5 0 0 1-3-2"/></svg></div>
+              <div class="ntx">
+                3D reconstruction provides a spatial view of the lesion and surrounding anatomy.
+                <a id="note-link" href="#">Use Brain Map to review nearby functional areas.</a>
+              </div>
+            </div>
+            <div id="legend"></div>
+            <div id="atlas-note">Note. Functional areas are estimated based on a standard brain atlas aligned to the patient's MRI.</div>
+          </div>
         </div>
-      </aside>
+        <div id="empty3d">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><path d="M12 2.6l8.4 4.8v9.2L12 21.4 3.6 16.6V7.4z"/><path d="M12 12l8.4-4.6M12 12v9.4M12 12L3.6 7.4"/></svg>
+          <div class="t1">3D visualization will appear here</div>
+          <div class="t2">Run analysis to generate<br/>3D reconstruction</div>
+        </div>
+      </div>
     </div>
+  </section>
+
+  <aside id="right-sidebar">
+    <section class="side-section">
+      <div class="section-title"><span>Image Controls</span><em>&#8722;</em></div>
+      <div class="section-body">
+        <div class="sl"><div class="sl-top"><span>Zoom</span><b id="v-zoom">0%</b></div><input id="s-zoom" type="range" min="60" max="200" value="60" disabled /></div>
+        <div class="sl"><div class="sl-top"><span>Brightness</span><b id="v-bri">0%</b></div><input id="s-bri" type="range" min="0" max="100" value="0" disabled /></div>
+        <div class="sl"><div class="sl-top"><span>Contrast</span><b id="v-con">0%</b></div><input id="s-con" type="range" min="0" max="100" value="0" disabled /></div>
+        <div class="sl-top" style="margin:0"><span>Current Slice</span><b id="v-slice" class="v-cyan">-</b></div>
+      </div>
+    </section>
+
+    <section class="side-section">
+      <div class="section-title"><span>Detection Settings</span><em>&#8722;</em></div>
+      <div class="section-body">
+        <div class="tg"><span>Show Lesion Overlay</span><span class="sw off-disabled" id="t-lesion"></span></div>
+        <div class="tg"><span>Sync Slices</span><span class="sw off-disabled" id="t-sync"></span></div>
+      </div>
+    </section>
+
+    <section class="side-section grow">
+      <div class="section-title"><span>Detection Summary</span><em>&#8722;</em></div>
+      <div class="section-body">
+        <div class="kv"><i>Lesion</i><b id="g-lesion" class="v-cyan">-</b></div>
+        <div class="kv" style="margin-bottom:0"><i>Confidence</i></div>
+        <div class="bar-row"><span class="bar"><span id="g-confbar"></span></span><u id="g-conf"></u></div>
+        <div class="kv"><i>Count</i><b id="g-count">-</b></div>
+        <div class="group-label">&nbsp;</div>
+        <div class="kv"><i>Tumor Area</i><b id="g-area">-</b></div>
+        <div class="kv"><i>Region</i><b id="g-region">-</b></div>
+      </div>
+    </section>
+
+    <div id="actions">
+      <label class="act primary" id="btn-upload" for="file-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V4M12 4L7.5 8.5M12 4l4.5 4.5M4 16v2.5A1.5 1.5 0 0 0 5.5 20h13a1.5 1.5 0 0 0 1.5-1.5V16"/></svg>
+        Upload MRI Data
+      </label>
+      <input id="file-input" type="file" accept=".nii,.nii.gz,.gz" />
+      <button class="act" id="btn-3d" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16"/></svg>
+        3D Reconstruction
+      </button>
+      <button class="act" id="btn-atlas" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-5.4 7-10.4A7 7 0 0 0 5 10.6C5 15.6 12 21 12 21z"/><circle cx="12" cy="10.4" r="2.4"/></svg>
+        Brain Map
+      </button>
+      <button class="act" id="btn-sync" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9h11l-3-3M20 15H9l3 3"/></svg>
+        Slice Sync
+      </button>
+      <button class="act" id="btn-report" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3.8h9L19 9v11.2H5z"/><path d="M14 3.8V9h5M8.2 13h7.6M8.2 16.4h5.4"/></svg>
+        Generate Report
+      </button>
+    </div>
+  </aside>
+</main>
+
+<footer id="status-bar">
+  <span>&#9881; Settings</span><span>&#9638; Report</span>
+  <span id="status">Initializing viewer...</span>
+</footer>
+
+<!-- ===================== PROGRESS ===================== -->
+<div id="progress">
+  <div class="box">
+    <div class="ptitle">Generating 3D Reconstruction...</div>
+    <div class="prow"><div class="ptrack"><div class="pbar" id="pbar"></div></div><div class="ppct" id="ppct">0%</div></div>
+    <div class="psub">Analyzing MRI data and reconstructing 3D volume.</div>
   </div>
+</div>
 
-  <script type="module">
-    import {
-      Niivue,
-      MULTIPLANAR_TYPE,
-      SLICE_TYPE,
-      SHOW_RENDER
-    } from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.69.0/+esm";
+<!-- ===================== POPUP ===================== -->
+<div id="popup">
+  <div id="popup-box">
+    <button id="popup-close" type="button" aria-label="Close">&times;</button>
+  </div>
+</div>
 
-    import * as THREE from "three";
+<!-- ===================== REPORT ===================== -->
+<div id="report">
+  <div id="report-box">
+    <div id="report-head"><span>Analysis Report</span><button id="report-close" type="button">&times;</button></div>
+    <div id="report-body"></div>
+  </div>
+</div>
+<script type="module">
+import { Niivue, MULTIPLANAR_TYPE, SLICE_TYPE, SHOW_RENDER }
+  from "https://cdn.jsdelivr.net/npm/@niivue/niivue@0.69.0/+esm";
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader }    from "three/addons/loaders/GLTFLoader.js";
 
-    import {
-      OrbitControls
-    } from "three/addons/controls/OrbitControls.js";
+/* ==========================================================================
+   CONFIG
+   ========================================================================== */
+const GLB_FILE_PATH    = "./patient07.glb";
+const PROGRESS_MS      = 10000;
 
-    import {
-      GLTFLoader
-    } from "three/addons/loaders/GLTFLoader.js";
+/* Demo case values shown in the side panels.
+   NOTE: values below reproduce the design mock-up. Values measured directly
+   from patient07.glb are:  size 30.6 x 33.9 x 35.9 mm, volume 15.4 cc,
+   centroid at superior-lateral peri-Rolandic cortex (not frontal lobe). */
+const CASE = {
+  name: "\uD64D\uAE38\uB3D9",
+  id:   "MN-2026-0001",
+  age:  "57/M",
+  caseId: "case_1774249109884",
+  riskLabel: "HIGH", riskPct: 82,
+  confidence: 92,
+  sizeMm: 32, volumeCc: 12.4,
+  region: "Frontal Lobe",
+  volumeRatio: 3.8, tumorArea: 18, count: 1
+};
 
-    /*
-      같은 폴더에 있는 GLB 파일
-    */
-    const GLB_FILE_PATH = "./patient07.glb";
+/* Mesh-local coordinate frame of patient07.glb after orientation reset:
+     x = left(-) / right(+)      y = inferior(-) / superior(+)      z = posterior(-) / anterior(+)
+   All atlas geometry below is authored in this frame. */
+const ATLAS_REGIONS = [
+  { key:"pm", name:"Premotor Cortex",      color:0x3f9fe0, seed:[30, 41,  41], radius:[32,32,15], align:0.05 },
+  { key:"m1", name:"Primary Motor Cortex", color:0xe0483f, seed:[34, 45,  19], radius:[32,32,12], align:0.05 },
+  { key:"s1", name:"Somatosensory Cortex", color:0xa259d9, seed:[41, 32, -43], radius:[30,30,18], align:0.05 },
+  { key:"br", name:"Broca's Area",         color:0xd6cd35, seed:[52,  2,  36], radius:[19,17,21], align:0.15 }
+];
+const TRACT = {
+  name: "Fiber Tract (Corticospinal)", color: 0x8ce46e,
+  path: [[36,46,7],[31,30,3],[25,15,-1],[18,2,-5],[12,-14,-9],[8,-32,-13],[6,-50,-17]],
+  strands: 7, radius: 1.15, spread: 3.4
+};
+const LESION_CARVE_MM = 2.5;   /* atlas patches are cut back this far around the lesion */
+const PATCH_OFFSET_MM = 1.1;   /* patches float this far outside the cortical surface  */
+const CAM_DIR = new THREE.Vector3(0.955, 0.155, 0.255).normalize();
 
-    /*
-      진행 바 시간: 10초
-    */
-    const PROGRESS_DURATION = 10000;
+/* ==========================================================================
+   DOM
+   ========================================================================== */
+const $ = id => document.getElementById(id);
+const login = $("login"), loginArt = $("login-art"), loginBtn = $("login-btn");
+const fileInput = $("file-input");
+const btnUpload = $("btn-upload"), btn3d = $("btn-3d"), btnAtlas = $("btn-atlas"),
+      btnSync = $("btn-sync"), btnReport = $("btn-report");
+const p4 = $("p4"), lb4 = $("lb4"), stage = $("stage"),
+      threeCanvas = $("three-canvas"), callouts = $("callouts");
+const progress = $("progress"), pbar = $("pbar"), ppct = $("ppct");
+const popup = $("popup"), popupBox = $("popup-box"), popupClose = $("popup-close");
+const statusEl = $("status");
 
-    /*
-      Atlas의 최종 투명도
-    */
-    const ATLAS_TARGET_OPACITY = 0.18;
+let nv = null, objUrl = null;
+let mriLoaded = false, modelLoaded = false, busy = false, popupOpen = false;
+let atlasOn = false, lesionVisible = true, syncOn = false, patientMode = false;
 
-    const fileInput =
-      document.getElementById("file-input");
+/* ==========================================================================
+   LOGIN  (line-art background + gate)
+   ========================================================================== */
+(function buildArt() {
+  const NS = "http://www.w3.org/2000/svg";
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ribbons = [
+    { a:[[1010,-80],[1560, 60],[1010,470],[1640,700]],
+      b:[[ 690,-80],[1230, 30],[ 760,600],[1660,1010]], n:74, w:[.62,.10] },
+    { a:[[-90,470],[210,660],[560,830],[980,930]],
+      b:[[-90,900],[330,930],[760,990],[1180,1030]], n:52, w:[.38,.05] }
+  ];
+  for (const r of ribbons) {
+    for (let i = 0; i < r.n; i++) {
+      const t = i / (r.n - 1);
+      const p = r.a.map((pt, k) => [lerp(pt[0], r.b[k][0], t), lerp(pt[1], r.b[k][1], t)]);
+      const path = document.createElementNS(NS, "path");
+      path.setAttribute("d", `M${p[0][0]} ${p[0][1]} C${p[1][0]} ${p[1][1]} ${p[2][0]} ${p[2][1]} ${p[3][0]} ${p[3][1]}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", "#5f86c8");
+      path.setAttribute("stroke-width", "0.85");
+      path.setAttribute("opacity", (lerp(r.w[0], r.w[1], t)).toFixed(3));
+      loginArt.appendChild(path);
+    }
+  }
+})();
 
-    const generateButton =
-      document.getElementById("generate-button");
+$("eye").addEventListener("click", () => {
+  const pw = $("login-pw");
+  pw.type = pw.type === "password" ? "text" : "password";
+});
+loginBtn.addEventListener("click", () => {
+  login.classList.add("hidden");
+  setTimeout(() => { if (nv) nv.resizeListener(); resizeStage(); }, 60);
+});
+$("login-pw").addEventListener("keydown", e => { if (e.key === "Enter") loginBtn.click(); });
 
-    const atlasButton =
-      document.getElementById("atlas-button");
+/* ==========================================================================
+   SMALL UI HELPERS
+   ========================================================================== */
+function setStatus(t) { statusEl.textContent = t; }
 
-    const status =
-      document.getElementById("status");
+function setButton(el, mode) {           /* mode: "primary" | "on" | "off" */
+  el.classList.remove("primary", "enabled");
+  if (mode === "primary") el.classList.add("primary", "enabled");
+  else if (mode === "on") el.classList.add("enabled");
+}
 
-    const lesionPanel =
-      document.getElementById("lesion-panel");
+function animateDonut(el, target) {
+  const b = el.querySelector("b");
+  const t0 = performance.now(), dur = 900;
+  (function step(now) {
+    const k = Math.min((now - t0) / dur, 1);
+    const e = 1 - Math.pow(1 - k, 3);
+    const v = target * e;
+    el.style.setProperty("--value", v.toFixed(2) + "%");
+    b.textContent = (target % 1 ? v.toFixed(1) : Math.round(v)) + "%";
+    if (k < 1) requestAnimationFrame(step);
+  })(performance.now());
+}
 
-    const threeCanvas =
-      document.getElementById("three-canvas");
+function fillBar(barId, txtId, pct) {
+  $(barId).style.width = pct + "%";
+  $(txtId).textContent = pct + "%";
+}
 
-    const progressOverlay =
-      document.getElementById("progress-overlay");
+function syncRange(input, label, fmt) {
+  const min = +input.min, max = +input.max;
+  const f = ((input.value - min) / (max - min)) * 100;
+  input.style.setProperty("--fill", f + "%");
+  if (label) label.textContent = fmt(+input.value);
+}
 
-    const progressBar =
-      document.getElementById("progress-bar");
+/* ==========================================================================
+   STATE 1 : MRI LOADED  -> fill patient panels
+   ========================================================================== */
+function applyCaseValues() {
+  $("f-name").textContent = CASE.name;
+  $("f-id").textContent   = CASE.id;
+  $("f-age").textContent  = CASE.age;
+  $("f-case").textContent = CASE.caseId;
+  $("f-status").textContent = "Completed";
+  $("f-risk").innerHTML = patientMode
+    ? `<span class="v-red">Requires specialist review</span>`
+    : `${CASE.riskLabel} <span class="v-red">(${CASE.riskPct}%)</span>`;
+  fillBar("f-confbar", "f-conf", CASE.confidence);
+  $("f-size").textContent = CASE.sizeMm + " mm";
+  $("f-vol").textContent  = CASE.volumeCc + " cc";
+  $("f-loc").textContent  = CASE.region;
+  $("f-ai").innerHTML = patientMode
+    ? `<span class="v-cyan">A finding was detected and shared with your care team</span>`
+    : `<span class="v-red">&#9650; High probability tumor detected</span>`;
 
-    const popup =
-      document.getElementById("popup");
+  animateDonut($("d1"), CASE.volumeRatio);
+  animateDonut($("d2"), CASE.riskPct);
+  animateDonut($("d3"), CASE.confidence);
 
-    const popupViewer =
-      document.getElementById("popup-viewer");
+  $("lb1").textContent = "Axial (T2)";
+  $("lb2").textContent = "Sagittal (T1)";
+  $("lb3").textContent = "Coronal (T2)";
 
-    const popupClose =
-      document.getElementById("popup-close");
+  ["s-zoom", "s-bri", "s-con"].forEach(id => { $(id).disabled = false; });
+  $("s-zoom").value = 100; $("s-bri").value = 50; $("s-con").value = 50;
+  syncRange($("s-zoom"), $("v-zoom"), v => v + "%");
+  syncRange($("s-bri"),  $("v-bri"),  v => v + "%");
+  syncRange($("s-con"),  $("v-con"),  v => v + "%");
+  applyImageControls();
 
-    const analysisPanel =
-      document.getElementById("analysis-panel");
+  $("t-lesion").classList.remove("off-disabled");
+  $("t-sync").classList.remove("off-disabled");
+}
 
-    const analysisKicker =
-      document.getElementById("analysis-kicker");
+/* ==========================================================================
+   STATE 2 : 3D DONE -> fill detection summary
+   ========================================================================== */
+function applyDetectionValues() {
+  $("g-lesion").textContent = "YES";
+  fillBar("g-confbar", "g-conf", CASE.confidence);
+  $("g-count").textContent  = CASE.count;
+  $("g-area").textContent   = CASE.tumorArea + "%";
+  $("g-region").textContent = CASE.region;
+  $("t-lesion").classList.add("on"); lesionVisible = true;
+  $("t-sync").classList.add("on");   syncOn = true; applySync();
+  $("c-size").innerHTML = `${CASE.sizeMm}<small>mm</small>`;
+  $("c-vol").innerHTML  = `${CASE.volumeCc}<small>cc</small>`;
+  $("c-conf").innerHTML = `${CASE.confidence}<small>%</small>`;
+}
 
-    const analysisTitle =
-      document.getElementById("analysis-title");
+/* ==========================================================================
+   NIIVUE
+   ========================================================================== */
+async function initNiivue() {
+  try {
+    nv = new Niivue({
+      backColor: [0.012, 0.039, 0.078, 1],
+      isColorbar: false,
+      dragAndDropEnabled: false,
+      multiplanarLayout: MULTIPLANAR_TYPE.GRID,
+      multiplanarShowRender: SHOW_RENDER.NEVER,
+      multiplanarEqualSize: true,
+      multiplanarPadPixels: 10,
+      crosshairWidth: 0
+    });
+    await nv.attachTo("niivue-canvas");
+    nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
+    nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+    nv.opts.multiplanarShowRender = SHOW_RENDER.NEVER;
+    nv.opts.multiplanarEqualSize = true;
+    nv.onLocationChange = updateSliceReadout;
+    nv.drawScene();
+    setStatus("Upload an MRI file.");
+  } catch (err) {
+    console.error("Niivue init failed:", err);
+    setStatus("Viewer initialization failed.");
+  }
+}
 
-    const analysisSummary =
-      document.getElementById("analysis-summary");
+function updateSliceReadout(d) {
+  try {
+    const vol = nv.volumes[0]; if (!vol) return;
+    const nz = vol.dimsRAS ? vol.dimsRAS[3] : vol.hdr.dims[3];
+    let k = 1;
+    if (d && d.vox) k = d.vox[2] + 1;
+    else k = Math.max(1, Math.round(nv.scene.crosshairPos[2] * nz));
+    $("v-slice").textContent = `${Math.min(Math.max(k, 1), nz)}/${nz}`;
+  } catch (e) { /* keep previous readout */ }
+}
 
-    const analysisItems =
-      document.getElementById("analysis-items");
+function applyImageControls() {
+  if (!nv || !nv.volumes.length) return;
+  const vol = nv.volumes[0];
+  const lo = vol.global_min, hi = vol.global_max, span = (hi - lo) || 1;
+  const b = +$("s-bri").value / 100, c = +$("s-con").value / 100;
+  const center = lo + span * (0.95 - 0.70 * b);
+  const width  = span * (1.25 - 1.00 * c);
+  vol.cal_min = center - width / 2;
+  vol.cal_max = center + width / 2;
+  nv.updateGLVolume();
+  try {
+    nv.scene.pan2Dxyzmm[3] = +$("s-zoom").value / 100;
+    nv.drawScene();
+  } catch (e) { /* zoom API unavailable in this build */ }
+  updateSliceReadout();
+}
 
-    const popupAnalysisPanel =
-      document.getElementById("popup-analysis-panel");
+function applySync() {
+  if (!nv) return;
+  try { nv.opts.crosshairWidth = syncOn ? 1 : 0; nv.drawScene(); } catch (e) {}
+}
 
-    const popupAnalysisKicker =
-      document.getElementById("popup-analysis-kicker");
+["s-zoom", "s-bri", "s-con"].forEach(id => {
+  const el = $(id), lab = { "s-zoom": "v-zoom", "s-bri": "v-bri", "s-con": "v-con" }[id];
+  el.addEventListener("input", () => { syncRange(el, $(lab), v => v + "%"); applyImageControls(); });
+});
 
-    const popupAnalysisTitle =
-      document.getElementById("popup-analysis-title");
+$("t-lesion").addEventListener("click", function () {
+  if (this.classList.contains("off-disabled")) return;
+  this.classList.toggle("on");
+  lesionVisible = this.classList.contains("on");
+  if (lesionMesh) lesionMesh.visible = lesionVisible;
+  drawCallouts();
+});
+$("t-sync").addEventListener("click", function () {
+  if (this.classList.contains("off-disabled")) return;
+  this.classList.toggle("on");
+  syncOn = this.classList.contains("on");
+  applySync();
+});
+btnSync.addEventListener("click", () => { if (mriLoaded) $("t-sync").click(); });
 
-    const popupAnalysisSummary =
-      document.getElementById("popup-analysis-summary");
+$("mode-doctor").addEventListener("click", () => setMode(false));
+$("mode-patient").addEventListener("click", () => setMode(true));
+function setMode(p) {
+  patientMode = p;
+  $("mode-doctor").classList.toggle("on", !p);
+  $("mode-patient").classList.toggle("on", p);
+  if (mriLoaded) applyCaseValues();
+  if (modelLoaded) applyDetectionValues();
+  updateNoteText();
+}
 
-    const popupAnalysisItems =
-      document.getElementById("popup-analysis-items");
+/* ==========================================================================
+   THREE.JS SCENE
+   ========================================================================== */
+const renderer = new THREE.WebGLRenderer({ canvas: threeCanvas, antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x000000, 0);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
 
-    let nv = null;
-    let currentObjectUrl = null;
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 6000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.rotateSpeed = 0.72;
+controls.zoomSpeed = 0.8;
 
-    let mriLoaded = false;
-    let modelLoaded = false;
-    let isProcessing = false;
-    let isPopupOpen = false;
+scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+const key  = new THREE.DirectionalLight(0xffffff, 2.9); key.position.set(6, 5, 7);  scene.add(key);
+const fill = new THREE.DirectionalLight(0x8fd4f5, 1.6); fill.position.set(-5, 3, 4); scene.add(fill);
+const rim  = new THREE.DirectionalLight(0xffb0bd, 0.9); rim.position.set(1, -4, -6);  scene.add(rim);
 
-    let lesionModel = null;
+let gltfRoot = null, brainMesh = null, lesionMesh = null;
+let atlasGroup = null, atlasFade = 0, atlasTarget = 0;
+let atlasMats = [], modelRadius = 120, modelCenter = new THREE.Vector3();
 
-    /*
-      Brain Function Atlas 관련 변수
-    */
-    let functionAtlasGroup = null;
-    let atlasVisible = false;
-    let atlasFadeValue = 0;
-    let atlasFadeTarget = 0;
-    let atlasRegionMaterials = [];
-    let atlasLabelMaterials = [];
+/* ---------------- GLB ---------------- */
+function loadGlb(path) {
+  return new Promise((res, rej) => new GLTFLoader().load(path, res, undefined, rej));
+}
 
-    /*
-      Three.js 기본 설정
-    */
-    const renderer =
-      new THREE.WebGLRenderer({
-        canvas: threeCanvas,
-        antialias: true,
-        alpha: false
+function prepareModel(gltf) {
+  gltfRoot = gltf.scene;
+
+  /* Reset the authoring rotation baked into the glTF node so that the mesh's
+     own coordinate frame (x=L/R, y=superior, z=anterior) becomes world space. */
+  gltfRoot.traverse(o => { if (o.isObject3D && !o.isMesh && o.parent === gltfRoot) o.quaternion.identity(); });
+  gltfRoot.quaternion.identity();
+
+  const meshes = [];
+  gltfRoot.traverse(o => {
+    if (!o.isMesh) return;
+    meshes.push(o);
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    mats.forEach(m => { if (m) { m.side = THREE.DoubleSide; m.needsUpdate = true; } });
+  });
+  meshes.sort((a, b) => b.geometry.attributes.position.count - a.geometry.attributes.position.count);
+  brainMesh  = meshes[0] || null;
+  lesionMesh = meshes[1] || null;
+
+  if (brainMesh) {
+    brainMesh.renderOrder = 1;
+    const m = brainMesh.material;
+    if (m) { m.transparent = true; m.opacity = 0.5; m.depthWrite = false; }
+  }
+  if (lesionMesh) lesionMesh.renderOrder = 0;
+
+  const box = new THREE.Box3().setFromObject(gltfRoot);
+  box.getCenter(modelCenter);
+  const sph = box.getBoundingSphere(new THREE.Sphere());
+  modelRadius = sph.radius;
+  scene.add(gltfRoot);
+}
+
+/* Fit camera; keeps the current orbit direction when `keepDir` is true. */
+function fitCamera(keepDir) {
+  const el = renderer.domElement;
+  const aspect = Math.max(el.clientWidth, 1) / Math.max(el.clientHeight, 1);
+  const vFov = THREE.MathUtils.degToRad(camera.fov);
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect);
+  const dist = (modelRadius / Math.sin(Math.min(vFov, hFov) / 2)) * 1.02;
+
+  const dir = keepDir
+    ? camera.position.clone().sub(controls.target).normalize()
+    : CAM_DIR.clone();
+  camera.position.copy(modelCenter).addScaledVector(dir, dist);
+  camera.near = dist / 200;
+  camera.far  = dist * 20;
+  camera.updateProjectionMatrix();
+  controls.target.copy(modelCenter);
+  controls.minDistance = dist * 0.35;
+  controls.maxDistance = dist * 4;
+  controls.update();
+}
+
+/* ==========================================================================
+   ATLAS  -  cortical surface patches carved out of the brain mesh
+   ========================================================================== */
+function buildLesionGrid() {
+  if (!lesionMesh) return () => false;
+  const lp = lesionMesh.geometry.attributes.position.array;
+  const VS = 2.0, PAD = LESION_CARVE_MM;
+  const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < lp.length; i += 3)
+    for (let k = 0; k < 3; k++) {
+      const v = lp[i + k];
+      if (v < lo[k]) lo[k] = v;
+      if (v > hi[k]) hi[k] = v;
+    }
+  for (let k = 0; k < 3; k++) { lo[k] -= PAD; hi[k] += PAD; }
+  const dim = [0, 0, 0];
+  for (let k = 0; k < 3; k++) dim[k] = Math.ceil((hi[k] - lo[k]) / VS) + 1;
+  const grid = new Uint8Array(dim[0] * dim[1] * dim[2]);
+  const at = (a, b, c) => (a * dim[1] + b) * dim[2] + c;
+  const R = Math.ceil(PAD / VS);
+  for (let i = 0; i < lp.length; i += 3) {
+    const a0 = Math.round((lp[i] - lo[0]) / VS),
+          b0 = Math.round((lp[i + 1] - lo[1]) / VS),
+          c0 = Math.round((lp[i + 2] - lo[2]) / VS);
+    for (let da = -R; da <= R; da++) for (let db = -R; db <= R; db++) for (let dc = -R; dc <= R; dc++) {
+      const a = a0 + da, b = b0 + db, c = c0 + dc;
+      if (a < 0 || b < 0 || c < 0 || a >= dim[0] || b >= dim[1] || c >= dim[2]) continue;
+      grid[at(a, b, c)] = 1;
+    }
+  }
+  return (x, y, z) => {
+    const a = Math.round((x - lo[0]) / VS), b = Math.round((y - lo[1]) / VS), c = Math.round((z - lo[2]) / VS);
+    if (a < 0 || b < 0 || c < 0 || a >= dim[0] || b >= dim[1] || c >= dim[2]) return false;
+    return grid[at(a, b, c)] === 1;
+  };
+}
+
+/* patient07.glb stores inward-facing normals, so outward = -normal. */
+function buildPatchGeometry(cfg, nearLesion) {
+  const geo = brainMesh.geometry;
+  const pos = geo.attributes.position.array;
+  const nor = geo.attributes.normal.array;
+  const idx = geo.index.array;
+  const n   = geo.attributes.position.count;
+
+  /* 1. snap the seed onto the surface and take its outward normal as reference */
+  let best = -1, bestD = Infinity;
+  const [sx, sy, sz] = cfg.seed;
+  for (let i = 0; i < n; i++) {
+    const dx = pos[3*i] - sx, dy = pos[3*i+1] - sy, dz = pos[3*i+2] - sz;
+    const d = dx*dx + dy*dy + dz*dz;
+    if (d < bestD) { bestD = d; best = i; }
+  }
+  const px = pos[3*best], py = pos[3*best+1], pz = pos[3*best+2];
+  let rx = -nor[3*best], ry = -nor[3*best+1], rz = -nor[3*best+2];
+  const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+
+  /* 2. select vertices inside the anisotropic cap, outside the lesion footprint */
+  const ir = [1 / cfg.radius[0], 1 / cfg.radius[1], 1 / cfg.radius[2]];
+  const keep = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    const dx = (pos[3*i]   - px) * ir[0],
+          dy = (pos[3*i+1] - py) * ir[1],
+          dz = (pos[3*i+2] - pz) * ir[2];
+    if (dx*dx + dy*dy + dz*dz > 1) continue;
+    const ox = -nor[3*i], oy = -nor[3*i+1], oz = -nor[3*i+2];
+    if (ox*rx + oy*ry + oz*rz < cfg.align) continue;
+    if (nearLesion(pos[3*i], pos[3*i+1], pos[3*i+2])) continue;
+    keep[i] = 1;
+  }
+
+  /* 3. keep triangles whose three corners survive; remap to a compact buffer */
+  const remap = new Int32Array(n).fill(-1);
+  const P = [], N = [], I = [];
+  for (let t = 0; t < idx.length; t += 3) {
+    const a = idx[t], b = idx[t+1], c = idx[t+2];
+    if (!keep[a] || !keep[b] || !keep[c]) continue;
+    for (const v of [a, b, c]) {
+      if (remap[v] < 0) {
+        remap[v] = P.length / 3;
+        let ox = -nor[3*v], oy = -nor[3*v+1], oz = -nor[3*v+2];
+        const l = Math.hypot(ox, oy, oz) || 1; ox /= l; oy /= l; oz /= l;
+        P.push(pos[3*v]   + ox * PATCH_OFFSET_MM,
+               pos[3*v+1] + oy * PATCH_OFFSET_MM,
+               pos[3*v+2] + oz * PATCH_OFFSET_MM);
+        N.push(ox, oy, oz);
+      }
+      I.push(remap[v]);
+    }
+  }
+  if (!I.length) return null;
+  const out = new THREE.BufferGeometry();
+  out.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
+  out.setAttribute("normal",   new THREE.Float32BufferAttribute(N, 3));
+  out.setIndex(I);
+  out.userData.seedPoint = new THREE.Vector3(
+    px + rx * PATCH_OFFSET_MM, py + ry * PATCH_OFFSET_MM, pz + rz * PATCH_OFFSET_MM);
+  return out;
+}
+
+function buildTract() {
+  const base = TRACT.path.map(p => new THREE.Vector3(p[0], p[1], p[2]));
+  const g = new THREE.Group();
+  for (let s = 0; s < TRACT.strands; s++) {
+    const f = (s / (TRACT.strands - 1) - 0.5) * 2;
+    const pts = base.map((p, i) => {
+      const taper = Math.sin((i / (base.length - 1)) * Math.PI) * 0.75 + 0.25;
+      return new THREE.Vector3(
+        p.x + f * TRACT.spread * taper,
+        p.y + f * TRACT.spread * 0.25 * taper,
+        p.z + Math.sin(f * 2.1) * TRACT.spread * 0.8 * taper
+      );
+    });
+    const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.4);
+    const geo = new THREE.TubeGeometry(curve, 110, TRACT.radius, 8, false);
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: TRACT.color, emissive: TRACT.color, emissiveIntensity: 0.35,
+      roughness: 0.4, metalness: 0, transparent: true, opacity: 0,
+      depthWrite: false, side: THREE.DoubleSide
+    });
+    mat.userData.base = 0.9;
+    atlasMats.push(mat);
+    const m = new THREE.Mesh(geo, mat);
+    m.renderOrder = 6;
+    g.add(m);
+  }
+  g.userData.midPoint = new THREE.CatmullRomCurve3(base).getPoint(0.62);
+  return g;
+}
+
+function buildAtlas() {
+  disposeAtlas();
+  if (!brainMesh) return;
+  const nearLesion = buildLesionGrid();
+  atlasGroup = new THREE.Group();
+  atlasGroup.name = "BrainFunctionAtlas";
+  atlasMats = [];
+
+  for (const cfg of ATLAS_REGIONS) {
+    const geo = buildPatchGeometry(cfg, nearLesion);
+    if (!geo) { console.warn("empty atlas patch:", cfg.name); continue; }
+    const mat = new THREE.MeshPhysicalMaterial({
+      color: cfg.color, emissive: cfg.color, emissiveIntensity: 0.22,
+      roughness: 0.45, metalness: 0, transparent: true, opacity: 0,
+      depthWrite: false, side: THREE.DoubleSide
+    });
+    mat.userData.base = 0.72;
+    atlasMats.push(mat);
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.renderOrder = 5;
+    mesh.userData.key = cfg.key;
+    mesh.userData.anchor = geo.userData.seedPoint;
+    atlasGroup.add(mesh);
+  }
+
+  const tract = buildTract();
+  tract.userData.key = "ct";
+  atlasGroup.add(tract);
+  atlasGroup.userData.tractAnchor = tract.userData.midPoint;
+
+  atlasGroup.visible = false;
+  gltfRoot.add(atlasGroup);
+  buildLegend();
+}
+
+function disposeAtlas() {
+  if (!atlasGroup) { atlasMats = []; return; }
+  atlasGroup.traverse(o => {
+    if (o.geometry) o.geometry.dispose();
+    if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => m.dispose());
+  });
+  atlasGroup.parent && atlasGroup.parent.remove(atlasGroup);
+  atlasGroup = null; atlasMats = []; atlasFade = 0; atlasTarget = 0;
+}
+
+function updateAtlasFade() {
+  if (!atlasGroup) return;
+  const d = atlasTarget - atlasFade;
+  atlasFade = Math.abs(d) < 0.004 ? atlasTarget : atlasFade + d * 0.09;
+  for (const m of atlasMats) m.opacity = m.userData.base * atlasFade;
+  if (atlasFade <= 0.004 && atlasTarget === 0) atlasGroup.visible = false;
+}
+
+function buildLegend() {
+  const el = $("legend");
+  el.innerHTML = "";
+  const order = ["m1", "pm", "s1", "br"];
+  const items = order
+    .map(k => ATLAS_REGIONS.find(r => r.key === k))
+    .filter(Boolean)
+    .map(r => [r.name, r.color]);
+  items.push([TRACT.name, TRACT.color]);
+  for (const [name, color] of items) {
+    const row = document.createElement("div");
+    row.className = "lg";
+    row.innerHTML = `<span class="sw2" style="background:#${color.toString(16).padStart(6, "0")}"></span>${name}`;
+    el.appendChild(row);
+  }
+}
+
+/* ==========================================================================
+   CALLOUT OVERLAY  (2D leader lines projected from 3D anchors)
+   ========================================================================== */
+const SVGNS = "http://www.w3.org/2000/svg";
+let anchorLesion = null, anchorFrontal = null, anchorEdge = null;
+let calloutMode = "none", calloutItems = [];
+
+function nearestSurface(x, y, z, push) {
+  const pos = brainMesh.geometry.attributes.position.array;
+  const nor = brainMesh.geometry.attributes.normal.array;
+  let best = 0, bd = Infinity;
+  for (let i = 0; i < pos.length; i += 3) {
+    const dx = pos[i] - x, dy = pos[i+1] - y, dz = pos[i+2] - z;
+    const d = dx*dx + dy*dy + dz*dz;
+    if (d < bd) { bd = d; best = i; }
+  }
+  const p = new THREE.Vector3(pos[best], pos[best+1], pos[best+2]);
+  const nrm = new THREE.Vector3(-nor[best], -nor[best+1], -nor[best+2]).normalize();
+  return p.addScaledVector(nrm, push || 0);
+}
+
+function computeAnchors() {
+  const lp = lesionMesh.geometry.attributes.position.array;
+  let bi = 0, bx = -Infinity;
+  for (let i = 0; i < lp.length; i += 3) if (lp[i] > bx) { bx = lp[i]; bi = i; }
+  anchorLesion  = new THREE.Vector3(lp[bi], lp[bi+1], lp[bi+2]);
+  anchorFrontal = nearestSurface(34, 4, 62, 1);
+  anchorEdge    = nearestSurface(30, -40, -56, 1);
+}
+
+const CALLOUTS = {
+  seg: () => ([
+    { text: "Lesion",                    at: anchorLesion,  dx: -150, dy: -105 },
+    { text: "Frontal Lobe",              at: anchorFrontal, dx: -168, dy:  -8  },
+    { text: "3D Reconstructed\nBrain",   at: anchorEdge,    dx:  118, dy:   78 }
+  ]),
+  fn: () => {
+    const get = k => {
+      const m = atlasGroup && atlasGroup.children.find(c => c.userData.key === k);
+      return m ? m.userData.anchor : null;
+    };
+    return [
+      { text: "Lesion",               at: anchorLesion, dx: -148, dy: -118 },
+      { text: "Premotor Cortex",      at: get("pm"),    dx: -170, dy:  -34 },
+      { text: "Somatosensory Cortex", at: get("s1"),    dx:  112, dy:  -74 },
+      { text: "Broca's Area",         at: get("br"),    dx: -152, dy:   62 },
+      { text: "Corticospinal Tract",  at: atlasGroup ? atlasGroup.userData.tractAnchor : null, dx: 118, dy: 84 }
+    ];
+  }
+};
+
+function setCalloutMode(mode) {
+  calloutMode = mode;
+  callouts.innerHTML = "";
+  calloutItems = [];
+  if (mode === "none" || !brainMesh) return;
+  for (const c of CALLOUTS[mode]()) {
+    if (!c.at) continue;
+    const g = document.createElementNS(SVGNS, "g");
+    const line = document.createElementNS(SVGNS, "polyline"); line.setAttribute("class", "lead");
+    const dot  = document.createElementNS(SVGNS, "circle");   dot.setAttribute("class", "dot"); dot.setAttribute("r", "3");
+    const txt  = document.createElementNS(SVGNS, "text");
+    const lines = c.text.split("\n");
+    lines.forEach((s, i) => {
+      const ts = document.createElementNS(SVGNS, "tspan");
+      ts.textContent = s; ts.setAttribute("x", "0");
+      ts.setAttribute("dy", i === 0 ? "0" : "15");
+      txt.appendChild(ts);
+    });
+    g.append(line, dot, txt);
+    callouts.appendChild(g);
+    calloutItems.push({ cfg: c, g, line, dot, txt, lines: lines.length });
+  }
+}
+
+const _v = new THREE.Vector3(), _c = new THREE.Vector3();
+function drawCallouts() {
+  if (!calloutItems.length) return;
+  const el = renderer.domElement;
+  const w = el.clientWidth, h = el.clientHeight;
+  if (w < 2 || h < 2) return;
+  callouts.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  const s = Math.min(Math.max(w / 900, 0.42), 1.2);
+  const fs = Math.round(Math.min(Math.max(12 * s * 1.15, 8.5), 13.5));
+  _c.copy(camera.position).sub(modelCenter);
+
+  for (const it of calloutItems) {
+    const a = it.cfg.at;
+    const facing = _v.copy(a).sub(modelCenter).dot(_c) > 0;
+    _v.copy(a).project(camera);
+    const behind = _v.z > 1;
+    if (!facing || behind) { it.g.style.display = "none"; continue; }
+    it.g.style.display = "";
+
+    const ax = (_v.x * 0.5 + 0.5) * w, ay = (0.5 - _v.y * 0.5) * h;
+    const sign = it.cfg.dx < 0 ? -1 : 1;
+    const pad = 8, stub = 24 * s;
+    let ex = ax + it.cfg.dx * s, ey = ay + it.cfg.dy * s;
+    ey = Math.min(Math.max(ey, pad + fs), h - pad - fs * it.lines);
+    const half = 105 * s;
+    ex = Math.min(Math.max(ex, pad + (sign < 0 ? half + stub : 0)),
+                  w - pad - (sign > 0 ? half + stub : 0));
+    const tx = ex + sign * stub;
+
+    it.line.setAttribute("points", `${ax},${ay} ${ex},${ey} ${tx},${ey}`);
+    it.line.setAttribute("stroke-width", (s * 1.05).toFixed(2));
+    it.dot.setAttribute("cx", ax); it.dot.setAttribute("cy", ay);
+    it.dot.setAttribute("r", (3 * s).toFixed(2));
+    it.txt.setAttribute("font-size", fs);
+    it.txt.setAttribute("text-anchor", sign < 0 ? "end" : "start");
+    it.txt.setAttribute("x", tx + sign * 6);
+    it.txt.setAttribute("y", ey + fs * 0.35 - (it.lines - 1) * fs * 0.55);
+    it.txt.querySelectorAll("tspan").forEach(ts => ts.setAttribute("x", tx + sign * 6));
+  }
+}
+
+function updateNoteText() {
+  $("note").querySelector(".ntx").childNodes[0].nodeValue = patientMode
+    ? "This 3D view shows where the finding sits inside the brain. "
+    : "3D reconstruction provides a spatial view of the lesion and surrounding anatomy. ";
+}
+
+/* ==========================================================================
+   WORKFLOW
+   ========================================================================== */
+fileInput.addEventListener("change", async e => {
+  const file = e.target.files && e.target.files[0];
+  if (!file || !nv || busy) return;
+  setStatus("Loading MRI...");
+  setButton(btn3d, "off"); setButton(btnAtlas, "off"); setButton(btnReport, "off");
+  removeModel();
+  try {
+    if (objUrl) { URL.revokeObjectURL(objUrl); objUrl = null; }
+    while (nv.volumes && nv.volumes.length) await nv.removeVolume(nv.volumes[0]);
+    objUrl = URL.createObjectURL(file);
+    await nv.loadVolumes([{ url: objUrl, name: file.name, colormap: "gray", opacity: 1, visible: true }]);
+    nv.setSliceType(SLICE_TYPE.MULTIPLANAR);
+    nv.setMultiplanarLayout(MULTIPLANAR_TYPE.GRID);
+    nv.opts.multiplanarShowRender = SHOW_RENDER.NEVER;
+    nv.opts.multiplanarEqualSize = true;
+    nv.drawScene();
+
+    mriLoaded = true;
+    applyCaseValues();
+    setButton(btnUpload, "on"); setButton(btn3d, "primary"); setButton(btnSync, "on");
+    setStatus("MRI loaded.");
+  } catch (err) {
+    console.error("MRI load failed:", err);
+    mriLoaded = false;
+    setButton(btnUpload, "primary"); setButton(btn3d, "off");
+    setStatus("MRI loading failed.");
+  }
+});
+
+btn3d.addEventListener("click", async () => {
+  if (!mriLoaded || busy) return;
+  busy = true; modelLoaded = false;
+  setButton(btn3d, "off"); setButton(btnAtlas, "off");
+  removeModel();
+  pbar.style.width = "0%"; ppct.textContent = "0%";
+  progress.classList.add("on");
+  setStatus("Processing MRI...");
+  try {
+    const progressDone = runProgress(PROGRESS_MS);
+    const gltf = await loadGlb(GLB_FILE_PATH);
+    prepareModel(gltf);
+    computeAnchors();
+    buildAtlas();
+    await progressDone;
+
+    modelLoaded = true;
+    p4.classList.add("loaded");
+    lb4.textContent = "3D Reconstruction Complete";
+    progress.classList.remove("on");
+    applyDetectionValues();
+    setButton(btnAtlas, "primary"); setButton(btnReport, "primary"); setButton(btnUpload, "on");
+    stage.classList.remove("fn");
+    setCalloutMode("seg");
+    resizeStage(); fitCamera(false);
+    setStatus("3D model generated.");
+  } catch (err) {
+    console.error("GLB load failed:", err);
+    progress.classList.remove("on");
+    setStatus("3D generation failed. Check patient07.glb.");
+  } finally {
+    busy = false;
+    setButton(btn3d, mriLoaded && !modelLoaded ? "primary" : (mriLoaded ? "on" : "off"));
+  }
+});
+
+function runProgress(dur) {
+  return new Promise(res => {
+    const t0 = performance.now();
+    (function step(now) {
+      const k = Math.min((now - t0) / dur, 1);
+      const e = 1 - Math.pow(1 - k, 1.7);
+      pbar.style.width = (e * 100).toFixed(1) + "%";
+      ppct.textContent = Math.round(e * 100) + "%";
+      if (k < 1) requestAnimationFrame(step);
+      else { pbar.style.width = "100%"; ppct.textContent = "100%"; setTimeout(res, 180); }
+    })(performance.now());
+  });
+}
+
+function toggleAtlas() {
+  if (!modelLoaded || !atlasGroup || busy) return;
+  atlasOn = !atlasOn;
+  if (atlasOn) {
+    atlasGroup.visible = true; atlasTarget = 1;
+    stage.classList.add("fn");
+    btnAtlas.lastChild.nodeValue = " Hide Brain Map ";
+    setCalloutMode("fn");
+    setStatus("Brain function map displayed.");
+  } else {
+    atlasTarget = 0;
+    stage.classList.remove("fn");
+    btnAtlas.lastChild.nodeValue = " Brain Map ";
+    setCalloutMode("seg");
+    setStatus("Brain function map hidden.");
+  }
+}
+btnAtlas.addEventListener("click", toggleAtlas);
+$("note-link").addEventListener("click", e => { e.preventDefault(); toggleAtlas(); });
+
+function removeModel() {
+  closePopup();
+  disposeAtlas();
+  setCalloutMode("none");
+  if (gltfRoot) {
+    scene.remove(gltfRoot);
+    gltfRoot.traverse(o => {
+      if (!o.isMesh) return;
+      if (o.geometry) o.geometry.dispose();
+      (Array.isArray(o.material) ? o.material : [o.material]).forEach(m => {
+        if (!m) return;
+        ["map", "normalMap", "roughnessMap", "metalnessMap", "emissiveMap"].forEach(k => m[k] && m[k].dispose());
+        m.dispose();
       });
-
-    renderer.setPixelRatio(
-      Math.min(
-        window.devicePixelRatio,
-        2
-      )
-    );
-
-    renderer.setClearColor(
-      0x000000,
-      1
-    );
-
-    renderer.outputColorSpace =
-      THREE.SRGBColorSpace;
-
-    renderer.toneMapping =
-      THREE.ACESFilmicToneMapping;
-
-    renderer.toneMappingExposure =
-      1.2;
-
-    const scene =
-      new THREE.Scene();
-
-    scene.background =
-      new THREE.Color(0x000000);
-
-    const camera =
-      new THREE.PerspectiveCamera(
-        45,
-        1,
-        0.01,
-        5000
-      );
-
-    camera.position.set(
-      0,
-      0,
-      4
-    );
-
-    const controls =
-      new OrbitControls(
-        camera,
-        renderer.domElement
-      );
-
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.07;
-    controls.enablePan = true;
-    controls.enableZoom = true;
-    controls.rotateSpeed = 0.7;
-    controls.zoomSpeed = 0.8;
-
-    /*
-      조명
-    */
-    scene.add(
-      new THREE.AmbientLight(
-        0xffffff,
-        2.2
-      )
-    );
-
-    const light1 =
-      new THREE.DirectionalLight(
-        0xffffff,
-        3.2
-      );
-
-    light1.position.set(
-      5,
-      6,
-      8
-    );
-
-    scene.add(light1);
-
-    const light2 =
-      new THREE.DirectionalLight(
-        0x7dd3fc,
-        1.8
-      );
-
-    light2.position.set(
-      -5,
-      3,
-      4
-    );
-
-    scene.add(light2);
-
-    const light3 =
-      new THREE.DirectionalLight(
-        0xff9aaa,
-        1.1
-      );
-
-    light3.position.set(
-      2,
-      -4,
-      -5
-    );
-
-    scene.add(light3);
-
-    /*
-      Niivue 초기화
-    */
-    async function initializeNiivue() {
-      try {
-        nv = new Niivue({
-          backColor: [0, 0, 0, 1],
-          isColorbar: false,
-          dragAndDropEnabled: false,
-          multiplanarLayout: MULTIPLANAR_TYPE.GRID,
-          multiplanarShowRender: SHOW_RENDER.NEVER,
-          multiplanarEqualSize: true
-        });
-
-        await nv.attachTo(
-          "niivue-canvas"
-        );
-
-        nv.setSliceType(
-          SLICE_TYPE.MULTIPLANAR
-        );
-
-        nv.setMultiplanarLayout(
-          MULTIPLANAR_TYPE.GRID
-        );
-
-        nv.opts.multiplanarShowRender =
-          SHOW_RENDER.NEVER;
-
-        nv.opts.multiplanarEqualSize =
-          true;
-
-        nv.drawScene();
-
-        status.textContent =
-          "Upload an MRI file.";
-      } catch (error) {
-        console.error(
-          "Niivue initialization error:",
-          error
-        );
-
-        status.textContent =
-          "Viewer initialization failed.";
-      }
-    }
-
-    /*
-      MRI 업로드
-    */
-    fileInput.addEventListener(
-      "change",
-      async event => {
-        const file =
-          event.target.files?.[0];
-
-        if (
-          !file ||
-          !nv ||
-          isProcessing
-        ) {
-          return;
-        }
-
-        status.textContent =
-          "Loading MRI...";
-
-        generateButton.disabled = true;
-        atlasButton.disabled = true;
-
-        removeExistingModel();
-
-        try {
-          if (currentObjectUrl) {
-            URL.revokeObjectURL(
-              currentObjectUrl
-            );
-
-            currentObjectUrl = null;
-          }
-
-          while (
-            nv.volumes &&
-            nv.volumes.length > 0
-          ) {
-            await nv.removeVolume(
-              nv.volumes[0]
-            );
-          }
-
-          currentObjectUrl =
-            URL.createObjectURL(file);
-
-          await nv.loadVolumes([
-            {
-              url: currentObjectUrl,
-              name: file.name,
-              colormap: "gray",
-              opacity: 1,
-              visible: true
-            }
-          ]);
-
-          nv.setSliceType(
-            SLICE_TYPE.MULTIPLANAR
-          );
-
-          nv.setMultiplanarLayout(
-            MULTIPLANAR_TYPE.GRID
-          );
-
-          nv.opts.multiplanarShowRender =
-            SHOW_RENDER.NEVER;
-
-          nv.opts.multiplanarEqualSize =
-            true;
-
-          nv.drawScene();
-
-          mriLoaded = true;
-          generateButton.disabled = false;
-
-          status.textContent =
-            "MRI loaded.";
-        } catch (error) {
-          console.error(
-            "MRI loading error:",
-            error
-          );
-
-          mriLoaded = false;
-          generateButton.disabled = true;
-          atlasButton.disabled = true;
-
-          status.textContent =
-            "MRI loading failed.";
-        }
-      }
-    );
-
-    /*
-      Generate 3D 버튼
-    */
-    generateButton.addEventListener(
-      "click",
-      async () => {
-        if (
-          !mriLoaded ||
-          isProcessing
-        ) {
-          return;
-        }
-
-        isProcessing = true;
-        modelLoaded = false;
-
-        generateButton.disabled = true;
-        atlasButton.disabled = true;
-
-        removeExistingModel();
-
-        progressBar.style.width = "0%";
-
-        progressOverlay.classList.add(
-          "active"
-        );
-
-        status.textContent =
-          "Processing MRI...";
-
-        try {
-          const [gltf] =
-            await Promise.all([
-              loadGlbModel(
-                GLB_FILE_PATH
-              ),
-              runProgressAnimation(
-                PROGRESS_DURATION
-              )
-            ]);
-
-          lesionModel = gltf.scene;
-
-          prepareModel(
-            lesionModel
-          );
-
-          scene.add(
-            lesionModel
-          );
-
-          /*
-            먼저 GLB를 화면 중앙에 맞춘다.
-          */
-          fitCameraToObject(
-            lesionModel
-          );
-
-          /*
-            중앙 정렬된 GLB를 기준으로
-            가상 기능영역을 생성한다.
-          */
-          createFunctionAtlas(
-            lesionModel
-          );
-
-          modelLoaded = true;
-
-          lesionPanel.classList.add(
-            "model-loaded"
-          );
-
-          progressOverlay.classList.remove(
-            "active"
-          );
-
-          progressBar.style.width = "0%";
-
-          atlasButton.disabled = false;
-
-          status.textContent =
-            "3D model generated.";
-
-          showSegmentationAnalysis();
-
-          resizeThreeViewer();
-        } catch (error) {
-          console.error(
-            "GLB loading error:",
-            error
-          );
-
-          progressOverlay.classList.remove(
-            "active"
-          );
-
-          progressBar.style.width = "0%";
-
-          atlasButton.disabled = true;
-
-          status.textContent =
-            "3D generation failed. Check patient07.glb.";
-
-          hideAnalysisPanel();
-        } finally {
-          isProcessing = false;
-
-          generateButton.disabled =
-            !mriLoaded;
-        }
-      }
-    );
-
-    /*
-      Brain Function Map 버튼
-    */
-    atlasButton.addEventListener(
-      "click",
-      () => {
-        if (
-          !modelLoaded ||
-          !functionAtlasGroup ||
-          isProcessing
-        ) {
-          return;
-        }
-
-        atlasVisible =
-          !atlasVisible;
-
-        if (atlasVisible) {
-          functionAtlasGroup.visible =
-            true;
-
-          atlasFadeTarget = 1;
-
-          atlasButton.classList.add(
-            "active"
-          );
-
-          atlasButton.textContent =
-            "Hide Function Map";
-
-          status.textContent =
-            "Brain function map displayed.";
-
-          showFunctionalAnalysis();
-        } else {
-          atlasFadeTarget = 0;
-
-          atlasButton.classList.remove(
-            "active"
-          );
-
-          atlasButton.textContent =
-            "Brain Function Map";
-
-          status.textContent =
-            "Brain function map hidden.";
-
-          showSegmentationAnalysis();
-        }
-      }
-    );
-
-    /*
-      분석 패널
-    */
-    function renderAnalysisItems(
-      target,
-      items
-    ) {
-      target.innerHTML = "";
-
-      items.forEach(
-        item => {
-          const element =
-            document.createElement(
-              "div"
-            );
-
-          element.className =
-            "analysis-item";
-
-          const heading =
-            document.createElement(
-              "strong"
-            );
-
-          heading.textContent =
-            item.title;
-
-          const description =
-            document.createElement(
-              "span"
-            );
-
-          description.textContent =
-            item.description;
-
-          element.append(
-            heading,
-            description
-          );
-
-          target.append(
-            element
-          );
-        }
-      );
-    }
-
-    function setAnalysisContent({
-      mode,
-      kicker,
-      title,
-      summary,
-      items
-    }) {
-      const isFunctional =
-        mode === "functional";
-
-      analysisPanel.classList.toggle(
-        "functional",
-        isFunctional
-      );
-
-      popupAnalysisPanel.classList.toggle(
-        "functional",
-        isFunctional
-      );
-
-      analysisKicker.textContent =
-        kicker;
-
-      popupAnalysisKicker.textContent =
-        kicker;
-
-      analysisTitle.textContent =
-        title;
-
-      popupAnalysisTitle.textContent =
-        title;
-
-      analysisSummary.textContent =
-        summary;
-
-      popupAnalysisSummary.textContent =
-        summary;
-
-      renderAnalysisItems(
-        analysisItems,
-        items
-      );
-
-      renderAnalysisItems(
-        popupAnalysisItems,
-        items
-      );
-
-      analysisPanel.classList.add(
-        "visible"
-      );
-    }
-
-    function showSegmentationAnalysis() {
-      setAnalysisContent({
-        mode: "segmentation",
-        kicker: "3D SEGMENTATION",
-        title: "Segmentation Analysis",
-        summary:
-          "A segmented lesion is visualized along the lateral aspect of the brain model. The lesion has an irregular contour and a localized outward extension.",
-        items: [
-          {
-            title: "Lesion morphology",
-            description:
-              "Irregular three-dimensional contour identified on the segmented mesh."
-          },
-          {
-            title: "Anatomical relationship",
-            description:
-              "The lesion occupies a lateral cortical region and should be reviewed together with adjacent functional structures."
-          },
-          {
-            title: "Recommended review",
-            description:
-              "Confirm lesion volume, anatomical localization, edema, and relationship to nearby cortex and white-matter pathways."
-          }
-        ]
-      });
-    }
-
-    function showFunctionalAnalysis() {
-      setAnalysisContent({
-        mode: "functional",
-        kicker: "FUNCTIONAL PROXIMITY",
-        title: "Functional Proximity Analysis",
-        summary:
-          "In this demonstration map, the lesion is positioned between the primary somatosensory cortex and language-related regions. These adjacent structures require particular attention during surgical planning.",
-        items: [
-          {
-            title: "Primary Somatosensory Cortex (S1)",
-            description:
-              "Close proximity may be associated with postoperative sensory disturbance involving the contralateral face, arm, or hand."
-          },
-          {
-            title: "Broca's and Wernicke's Areas",
-            description:
-              "Nearby language cortex may require assessment of speech production and language comprehension, particularly in the dominant hemisphere."
-          },
-          {
-            title: "Arcuate Fasciculus",
-            description:
-              "Potential pathway involvement should be reviewed because disruption may affect communication between language regions."
-          },
-          {
-            title: "Corticospinal Tract (CST)",
-            description:
-              "The motor pathway should be preserved and its distance from the lesion confirmed with tract-based imaging."
-          }
-        ]
-      });
-    }
-
-    function hideAnalysisPanel() {
-      analysisPanel.classList.remove(
-        "visible",
-        "functional"
-      );
-    }
-
-    /*
-      GLB 불러오기
-    */
-    function loadGlbModel(path) {
-      return new Promise(
-        (resolve, reject) => {
-          const loader =
-            new GLTFLoader();
-
-          loader.load(
-            path,
-            gltf => {
-              resolve(gltf);
-            },
-            undefined,
-            error => {
-              reject(error);
-            }
-          );
-        }
-      );
-    }
-
-    /*
-      10초 진행 바
-    */
-    function runProgressAnimation(
-      duration
-    ) {
-      return new Promise(
-        resolve => {
-          const startTime =
-            performance.now();
-
-          function update(
-            currentTime
-          ) {
-            const elapsed =
-              currentTime - startTime;
-
-            const ratio =
-              Math.min(
-                elapsed / duration,
-                1
-              );
-
-            const eased =
-              1 -
-              Math.pow(
-                1 - ratio,
-                1.7
-              );
-
-            progressBar.style.width =
-              `${eased * 100}%`;
-
-            if (ratio < 1) {
-              requestAnimationFrame(
-                update
-              );
-            } else {
-              progressBar.style.width =
-                "100%";
-
-              window.setTimeout(
-                resolve,
-                150
-              );
-            }
-          }
-
-          requestAnimationFrame(
-            update
-          );
-        }
-      );
-    }
-
-    /*
-      GLB 재질 설정
-    */
-    function prepareModel(model) {
-      model.traverse(
-        object => {
-          if (!object.isMesh) {
-            return;
-          }
-
-          object.castShadow = true;
-          object.receiveShadow = true;
-
-          const materials =
-            Array.isArray(
-              object.material
-            )
-              ? object.material
-              : [object.material];
-
-          materials.forEach(
-            material => {
-              if (!material) {
-                return;
-              }
-
-              material.side =
-                THREE.DoubleSide;
-
-              material.needsUpdate =
-                true;
-            }
-          );
-        }
-      );
-    }
-
-    /*
-      카메라를 GLB 크기에 맞춘다.
-      GLB 중심도 원점으로 이동한다.
-    */
-    function fitCameraToObject(object) {
-      const box =
-        new THREE.Box3().setFromObject(
-          object
-        );
-
-      if (box.isEmpty()) {
-        camera.position.set(
-          0,
-          0,
-          4
-        );
-
-        controls.target.set(
-          0,
-          0,
-          0
-        );
-
-        controls.update();
-
-        return;
-      }
-
-      const center =
-        box.getCenter(
-          new THREE.Vector3()
-        );
-
-      const size =
-        box.getSize(
-          new THREE.Vector3()
-        );
-
-      object.position.sub(
-        center
-      );
-
-      const maxSize =
-        Math.max(
-          size.x,
-          size.y,
-          size.z
-        );
-
-      const fov =
-        camera.fov *
-        Math.PI /
-        180;
-
-      let distance =
-        maxSize /
-        (
-          2 *
-          Math.tan(
-            fov / 2
-          )
-        );
-
-      distance *= 1.65;
-
-      camera.position.set(
-        distance * 0.45,
-        distance * 0.25,
-        distance
-      );
-
-      camera.near =
-        Math.max(
-          distance / 1000,
-          0.001
-        );
-
-      camera.far =
-        distance * 100;
-
-      camera.updateProjectionMatrix();
-
-      controls.target.set(
-        0,
-        0,
-        0
-      );
-
-      controls.minDistance =
-        distance * 0.15;
-
-      controls.maxDistance =
-        distance * 8;
-
-      controls.update();
-    }
-
-    /*
-      가상의 Brain Function Atlas 생성
-    */
-
-
-    function createFunctionAtlas(model) {
-      removeFunctionAtlas();
-
-      const box =
-        new THREE.Box3().setFromObject(
-          model
-        );
-
-      const size =
-        box.getSize(
-          new THREE.Vector3()
-        );
-
-      const center =
-        box.getCenter(
-          new THREE.Vector3()
-        );
-
-      functionAtlasGroup =
-        new THREE.Group();
-
-      functionAtlasGroup.name =
-        "BrainFunctionAtlas";
-
-      /*
-        시연용 상대 좌표다.
-
-        position:
-        뇌 중심을 기준으로 한 위치
-
-        scale:
-        뇌 전체 X, Y, Z 크기에 대한 비율
-
-        기능 영역이 뇌의 바깥으로 튀어나오지 않도록
-        크기를 작게 하고 중심 쪽으로 배치했다.
-      */
-      const atlasRegions = [
-        {
-          name: "Primary Motor Cortex (M1)",
-          color: 0x22d3ee,
-          position: [-0.15, 0.23, 0.16],
-          scale: [0.055, 0.15, 0.045],
-          labelOffset: [-0.22, 0.39, 0.18]
-        },
-        {
-          name: "Primary Somatosensory Cortex (S1)",
-          color: 0x4ade80,
-          position: [0.08, 0.13, 0.17],
-          scale: [0.055, 0.15, 0.045],
-          labelOffset: [0.22, 0.31, 0.19]
-        },
-        {
-          name: "Broca's Area",
-          color: 0xfacc15,
-          position: [0.25, -0.08, 0.12],
-          scale: [0.085, 0.065, 0.05],
-          labelOffset: [0.38, -0.15, 0.14]
-        },
-        {
-          name: "Wernicke's Area",
-          color: 0xfb7185,
-          position: [0.24, 0.055, 0.08],
-          scale: [0.085, 0.065, 0.05],
-          labelOffset: [0.39, 0.07, 0.10]
-        },
-        {
-          name: "Arcuate Fasciculus",
-          color: 0xf97316,
-          position: [0.17, -0.015, 0.015],
-          scale: [0.055, 0.17, 0.035],
-          rotation: [0.15, 0.0, -0.52],
-          labelOffset: [0.28, -0.29, 0.02]
-        },
-        {
-          name: "Corticospinal Tract (CST)",
-          color: 0x60a5fa,
-          position: [-0.025, -0.09, -0.015],
-          scale: [0.045, 0.20, 0.035],
-          rotation: [0.0, 0.0, 0.10],
-          labelOffset: [-0.20, -0.31, 0.00]
-        },
-        {
-          name: "Optic Radiation",
-          color: 0xc084fc,
-          position: [-0.23, -0.19, -0.04],
-          scale: [0.12, 0.075, 0.045],
-          rotation: [0.0, 0.15, -0.15],
-          labelOffset: [-0.38, -0.28, 0.00]
-        }
-      ];
-
-      atlasRegions.forEach(
-        region => {
-          const regionGroup =
-            new THREE.Group();
-
-          regionGroup.name =
-            region.name;
-
-          const geometry =
-            new THREE.SphereGeometry(
-              1,
-              48,
-              32
-            );
-
-          const material =
-            new THREE.MeshPhysicalMaterial({
-              color: region.color,
-              transparent: true,
-              opacity: 0,
-              roughness: 0.25,
-              metalness: 0,
-              transmission: 0.05,
-              emissive: region.color,
-              emissiveIntensity: 0.12,
-              depthWrite: false,
-              depthTest: true,
-              side: THREE.DoubleSide
-            });
-
-          material.userData.baseOpacity =
-            0.18;
-
-          const mesh =
-            new THREE.Mesh(
-              geometry,
-              material
-            );
-
-          mesh.position.set(
-            center.x +
-              region.position[0] *
-              size.x,
-
-            center.y +
-              region.position[1] *
-              size.y,
-
-            center.z +
-              region.position[2] *
-              size.z
-          );
-
-          mesh.scale.set(
-            region.scale[0] *
-              size.x,
-
-            region.scale[1] *
-              size.y,
-
-            region.scale[2] *
-              size.z
-          );
-
-          if (region.rotation) {
-            mesh.rotation.set(
-              region.rotation[0],
-              region.rotation[1],
-              region.rotation[2]
-            );
-          }
-
-          mesh.renderOrder = 20;
-
-          atlasRegionMaterials.push(
-            material
-          );
-
-          regionGroup.add(
-            mesh
-          );
-
-          const edgeGeometry =
-            new THREE.SphereGeometry(
-              1,
-              24,
-              16
-            );
-
-          const edgeMaterial =
-            new THREE.MeshBasicMaterial({
-              color: region.color,
-              transparent: true,
-              opacity: 0,
-              wireframe: true,
-              depthWrite: false,
-              depthTest: true,
-              side: THREE.DoubleSide
-            });
-
-          edgeMaterial.userData.baseOpacity =
-            0.03;
-
-          const edgeMesh =
-            new THREE.Mesh(
-              edgeGeometry,
-              edgeMaterial
-            );
-
-          edgeMesh.position.copy(
-            mesh.position
-          );
-
-          edgeMesh.scale.copy(
-            mesh.scale
-          );
-
-          edgeMesh.rotation.copy(
-            mesh.rotation
-          );
-
-          edgeMesh.scale.multiplyScalar(
-            1.01
-          );
-
-          edgeMesh.renderOrder = 21;
-
-          atlasRegionMaterials.push(
-            edgeMaterial
-          );
-
-          regionGroup.add(
-            edgeMesh
-          );
-
-          const label =
-            createTextLabel(
-              region.name,
-              region.color,
-              Math.max(
-                size.x,
-                size.y,
-                size.z
-              )
-            );
-
-          label.position.set(
-            center.x +
-              region.labelOffset[0] *
-              size.x,
-
-            center.y +
-              region.labelOffset[1] *
-              size.y,
-
-            center.z +
-              region.labelOffset[2] *
-              size.z
-          );
-
-          label.renderOrder = 30;
-
-          regionGroup.add(
-            label
-          );
-
-          functionAtlasGroup.add(
-            regionGroup
-          );
-        }
-      );
-
-      functionAtlasGroup.visible =
-        false;
-
-      atlasVisible = false;
-      atlasFadeValue = 0;
-      atlasFadeTarget = 0;
-
-      atlasButton.classList.remove(
-        "active"
-      );
-
-      atlasButton.textContent =
-        "Brain Function Map";
-
-      scene.add(
-        functionAtlasGroup
-      );
-    }
-
-    /*
-      Canvas를 이용해 Three.js Sprite 라벨 생성
-    */
-    function createTextLabel(
-      text,
-      color,
-      baseSize
-    ) {
-      const canvas =
-        document.createElement(
-          "canvas"
-        );
-
-      canvas.width = 640;
-      canvas.height = 160;
-
-      const context =
-        canvas.getContext(
-          "2d"
-        );
-
-      context.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-      );
-
-      /*
-        라벨 배경
-      */
-      context.fillStyle =
-        "rgba(4, 10, 20, 0.82)";
-
-      roundRect(
-        context,
-        8,
-        18,
-        624,
-        124,
-        28
-      );
-
-      context.fill();
-
-      /*
-        색상 테두리
-      */
-      context.strokeStyle =
-        `#${color
-          .toString(16)
-          .padStart(6, "0")}`;
-
-      context.lineWidth = 5;
-
-      roundRect(
-        context,
-        8,
-        18,
-        624,
-        124,
-        28
-      );
-
-      context.stroke();
-
-      /*
-        라벨 글씨
-      */
-      context.fillStyle =
-        "#ffffff";
-
-      context.font =
-        "bold 36px Arial";
-
-      context.textAlign =
-        "center";
-
-      context.textBaseline =
-        "middle";
-
-      context.fillText(
-        text,
-        canvas.width / 2,
-        canvas.height / 2 + 2
-      );
-
-      const texture =
-        new THREE.CanvasTexture(
-          canvas
-        );
-
-      texture.colorSpace =
-        THREE.SRGBColorSpace;
-
-      texture.needsUpdate =
-        true;
-
-      const material =
-        new THREE.SpriteMaterial({
-          map: texture,
-          transparent: true,
-          opacity: 0,
-          depthTest: false,
-          depthWrite: false
-        });
-
-      material.userData.baseOpacity =
-        0.95;
-
-      const sprite =
-        new THREE.Sprite(
-          material
-        );
-
-      const labelWidth =
-        baseSize * 0.25;
-
-      const labelHeight =
-        labelWidth * 0.25;
-
-      sprite.scale.set(
-        labelWidth,
-        labelHeight,
-        1
-      );
-
-      atlasLabelMaterials.push(
-        material
-      );
-
-      return sprite;
-    }
-
-    /*
-      Canvas 둥근 사각형
-    */
-    function roundRect(
-      context,
-      x,
-      y,
-      width,
-      height,
-      radius
-    ) {
-      context.beginPath();
-
-      context.moveTo(
-        x + radius,
-        y
-      );
-
-      context.lineTo(
-        x + width - radius,
-        y
-      );
-
-      context.quadraticCurveTo(
-        x + width,
-        y,
-        x + width,
-        y + radius
-      );
-
-      context.lineTo(
-        x + width,
-        y + height - radius
-      );
-
-      context.quadraticCurveTo(
-        x + width,
-        y + height,
-        x + width - radius,
-        y + height
-      );
-
-      context.lineTo(
-        x + radius,
-        y + height
-      );
-
-      context.quadraticCurveTo(
-        x,
-        y + height,
-        x,
-        y + height - radius
-      );
-
-      context.lineTo(
-        x,
-        y + radius
-      );
-
-      context.quadraticCurveTo(
-        x,
-        y,
-        x + radius,
-        y
-      );
-
-      context.closePath();
-    }
-
-    /*
-      Atlas 페이드 효과
-    */
-    function updateAtlasFade() {
-      if (!functionAtlasGroup) {
-        return;
-      }
-
-      const difference =
-        atlasFadeTarget -
-        atlasFadeValue;
-
-      if (
-        Math.abs(difference) <
-        0.003
-      ) {
-        atlasFadeValue =
-          atlasFadeTarget;
-      } else {
-        atlasFadeValue +=
-          difference * 0.075;
-      }
-
-      atlasRegionMaterials.forEach(
-        material => {
-          material.opacity =
-            material.userData.baseOpacity *
-            atlasFadeValue;
-        }
-      );
-
-      atlasLabelMaterials.forEach(
-        material => {
-          material.opacity =
-            material.userData.baseOpacity *
-            atlasFadeValue;
-        }
-      );
-
-      if (
-        atlasFadeValue <= 0.002 &&
-        atlasFadeTarget === 0
-      ) {
-        functionAtlasGroup.visible =
-          false;
-      }
-    }
-
-    /*
-      Atlas 제거 및 메모리 정리
-    */
-    function removeFunctionAtlas() {
-      if (!functionAtlasGroup) {
-        atlasRegionMaterials = [];
-        atlasLabelMaterials = [];
-        return;
-      }
-
-      scene.remove(
-        functionAtlasGroup
-      );
-
-      functionAtlasGroup.traverse(
-        object => {
-          if (object.geometry) {
-            object.geometry.dispose();
-          }
-
-          if (object.material) {
-            const materials =
-              Array.isArray(
-                object.material
-              )
-                ? object.material
-                : [object.material];
-
-            materials.forEach(
-              material => {
-                if (
-                  material.map
-                ) {
-                  material.map.dispose();
-                }
-
-                material.dispose();
-              }
-            );
-          }
-        }
-      );
-
-      functionAtlasGroup = null;
-
-      atlasRegionMaterials = [];
-      atlasLabelMaterials = [];
-
-      atlasVisible = false;
-      atlasFadeValue = 0;
-      atlasFadeTarget = 0;
-
-      atlasButton.classList.remove(
-        "active"
-      );
-
-      atlasButton.textContent =
-        "Brain Function Map";
-    }
-
-    /*
-      기존 GLB와 Atlas 제거
-    */
-    function removeExistingModel() {
-      closePopup();
-
-      hideAnalysisPanel();
-
-      removeFunctionAtlas();
-
-      if (lesionModel) {
-        scene.remove(
-          lesionModel
-        );
-
-        lesionModel.traverse(
-          object => {
-            if (!object.isMesh) {
-              return;
-            }
-
-            if (object.geometry) {
-              object.geometry.dispose();
-            }
-
-            const materials =
-              Array.isArray(
-                object.material
-              )
-                ? object.material
-                : [object.material];
-
-            materials.forEach(
-              material => {
-                if (!material) {
-                  return;
-                }
-
-                /*
-                  GLB가 텍스처를 사용하면 정리
-                */
-                if (material.map) {
-                  material.map.dispose();
-                }
-
-                if (
-                  material.normalMap
-                ) {
-                  material.normalMap.dispose();
-                }
-
-                if (
-                  material.roughnessMap
-                ) {
-                  material.roughnessMap.dispose();
-                }
-
-                if (
-                  material.metalnessMap
-                ) {
-                  material.metalnessMap.dispose();
-                }
-
-                material.dispose();
-              }
-            );
-          }
-        );
-      }
-
-      lesionModel = null;
-      modelLoaded = false;
-
-      lesionPanel.classList.remove(
-        "model-loaded"
-      );
-
-      atlasButton.disabled = true;
-    }
-
-    /*
-      작은 화면 클릭과 회전 드래그 구분
-    */
-    let pointerStartX = 0;
-    let pointerStartY = 0;
-    let pointerMoved = false;
-
-    threeCanvas.addEventListener(
-      "pointerdown",
-      event => {
-        pointerStartX =
-          event.clientX;
-
-        pointerStartY =
-          event.clientY;
-
-        pointerMoved = false;
-      }
-    );
-
-    threeCanvas.addEventListener(
-      "pointermove",
-      event => {
-        const moveX =
-          Math.abs(
-            event.clientX -
-            pointerStartX
-          );
-
-        const moveY =
-          Math.abs(
-            event.clientY -
-            pointerStartY
-          );
-
-        if (
-          moveX > 6 ||
-          moveY > 6
-        ) {
-          pointerMoved = true;
-        }
-      }
-    );
-
-    threeCanvas.addEventListener(
-      "pointerup",
-      event => {
-        if (
-          pointerMoved ||
-          !modelLoaded ||
-          isProcessing ||
-          isPopupOpen
-        ) {
-          return;
-        }
-
-        event.stopPropagation();
-
-        openPopup();
-      }
-    );
-
-    popupClose.addEventListener(
-      "click",
-      event => {
-        event.stopPropagation();
-
-        closePopup();
-      }
-    );
-
-    popup.addEventListener(
-      "click",
-      event => {
-        if (
-          event.target === popup
-        ) {
-          closePopup();
-        }
-      }
-    );
-
-    document.addEventListener(
-      "keydown",
-      event => {
-        if (
-          event.key === "Escape" &&
-          isPopupOpen
-        ) {
-          closePopup();
-        }
-      }
-    );
-
-    /*
-      팝업 열기
-    */
-    function openPopup() {
-      if (
-        !modelLoaded ||
-        isPopupOpen
-      ) {
-        return;
-      }
-
-      isPopupOpen = true;
-
-      popup.classList.add(
-        "active"
-      );
-
-      popupViewer.appendChild(
-        threeCanvas
-      );
-
-      if (atlasVisible) {
-        showFunctionalAnalysis();
-      } else {
-        showSegmentationAnalysis();
-      }
-
-      window.setTimeout(
-        () => {
-          resizeThreeViewer();
-          controls.update();
-        },
-        60
-      );
-    }
-
-    /*
-      팝업 닫기
-    */
-    function closePopup() {
-      if (
-        threeCanvas.parentElement !==
-        lesionPanel
-      ) {
-        lesionPanel.insertBefore(
-          threeCanvas,
-          progressOverlay
-        );
-      }
-
-      isPopupOpen = false;
-
-      popup.classList.remove(
-        "active"
-      );
-
-      window.setTimeout(
-        () => {
-          resizeThreeViewer();
-          controls.update();
-        },
-        40
-      );
-    }
-
-    /*
-      작은 화면 또는 팝업 크기에 맞춰
-      Three.js 캔버스를 다시 계산한다.
-    */
-    function resizeThreeViewer() {
-      const parent =
-        threeCanvas.parentElement;
-
-      if (!parent) {
-        return;
-      }
-
-      const width =
-        parent.clientWidth;
-
-      const height =
-        parent.clientHeight;
-
-      if (
-        width < 1 ||
-        height < 1
-      ) {
-        return;
-      }
-
-      renderer.setSize(
-        width,
-        height,
-        false
-      );
-
-      renderer.setPixelRatio(
-        Math.min(
-          window.devicePixelRatio,
-          2
-        )
-      );
-
-      camera.aspect =
-        width / height;
-
-      camera.updateProjectionMatrix();
-    }
-
-    /*
-      Three.js 반복 렌더링
-    */
-    function animate() {
-      requestAnimationFrame(
-        animate
-      );
-
-      updateAtlasFade();
-
-      controls.update();
-
-      renderer.render(
-        scene,
-        camera
-      );
-    }
-
-    window.addEventListener(
-      "resize",
-      () => {
-        if (nv) {
-          nv.resizeListener();
-        }
-
-        resizeThreeViewer();
-      }
-    );
-
-    /*
-      실행 시작
-    */
-    initializeNiivue();
-
-    animate();
-
-    requestAnimationFrame(
-      () => {
-        resizeThreeViewer();
-      }
-    );
-  </script>
+    });
+  }
+  gltfRoot = brainMesh = lesionMesh = null;
+  modelLoaded = false; atlasOn = false;
+  p4.classList.remove("loaded");
+  stage.classList.remove("fn");
+  lb4.textContent = "3D Reconstruction";
+  btnAtlas.lastChild.nodeValue = " Brain Map ";
+  setButton(btnAtlas, "off"); setButton(btnReport, "off");
+}
+
+/* ==========================================================================
+   POPUP
+   ========================================================================== */
+let downX = 0, downY = 0, moved = false;
+threeCanvas.addEventListener("pointerdown", e => { downX = e.clientX; downY = e.clientY; moved = false; });
+threeCanvas.addEventListener("pointermove", e => {
+  if (Math.abs(e.clientX - downX) > 6 || Math.abs(e.clientY - downY) > 6) moved = true;
+});
+threeCanvas.addEventListener("pointerup", e => {
+  if (moved || !modelLoaded || busy || popupOpen) return;
+  e.stopPropagation();
+  openPopup();
+});
+
+function openPopup() {
+  if (!modelLoaded || popupOpen) return;
+  popupOpen = true;
+  popup.classList.add("on");
+  popupBox.appendChild(stage);
+  setTimeout(() => { resizeStage(); fitCamera(true); }, 60);
+}
+function closePopup() {
+  if (stage.parentElement !== p4) p4.insertBefore(stage, $("empty3d"));
+  popupOpen = false;
+  popup.classList.remove("on");
+  setTimeout(() => { resizeStage(); fitCamera(true); }, 40);
+}
+popupClose.addEventListener("click", e => { e.stopPropagation(); closePopup(); });
+popup.addEventListener("click", e => { if (e.target === popup) closePopup(); });
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  if ($("report").classList.contains("on")) $("report").classList.remove("on");
+  else if (popupOpen) closePopup();
+});
+
+/* ==========================================================================
+   REPORT
+   ========================================================================== */
+btnReport.addEventListener("click", () => {
+  if (!modelLoaded) return;
+  $("report-body").innerHTML = `
+    <h4>Patient</h4>
+    <table>
+      <tr><td>Name</td><td>${CASE.name}</td></tr>
+      <tr><td>Patient ID</td><td>${CASE.id}</td></tr>
+      <tr><td>Age / Sex</td><td>${CASE.age}</td></tr>
+      <tr><td>Case</td><td>${CASE.caseId}</td></tr>
+    </table>
+    <h4>Detection</h4>
+    <table>
+      <tr><td>Lesion detected</td><td>YES (count ${CASE.count})</td></tr>
+      <tr><td>Detection confidence</td><td>${CASE.confidence}%</td></tr>
+      <tr><td>Risk level</td><td>${CASE.riskLabel} (${CASE.riskPct}%)</td></tr>
+      <tr><td>Maximum diameter</td><td>${CASE.sizeMm} mm</td></tr>
+      <tr><td>Volume</td><td>${CASE.volumeCc} cc</td></tr>
+      <tr><td>Tumor volume ratio</td><td>${CASE.volumeRatio}%</td></tr>
+      <tr><td>Reported region</td><td>${CASE.region}</td></tr>
+    </table>
+    <h4>Functional proximity</h4>
+    <table>
+      ${ATLAS_REGIONS.map(r => `<tr><td>${r.name}</td><td>Adjacent &mdash; review before resection</td></tr>`).join("")}
+      <tr><td>${TRACT.name}</td><td>Descending pathway &mdash; confirm with tractography</td></tr>
+    </table>
+    <div class="warn">
+      Functional areas are estimated from a standard brain atlas aligned to the patient's MRI.
+      Demonstration output for visualization only. Not a clinical diagnosis or surgical recommendation.
+    </div>`;
+  $("report").classList.add("on");
+});
+$("report-close").addEventListener("click", () => $("report").classList.remove("on"));
+$("report").addEventListener("click", e => { if (e.target === $("report")) $("report").classList.remove("on"); });
+
+/* ==========================================================================
+   RESIZE + LOOP
+   ========================================================================== */
+function resizeStage() {
+  const parent = threeCanvas.parentElement;
+  if (!parent) return;
+  const w = parent.clientWidth, h = parent.clientHeight;
+  if (w < 2 || h < 2) return;
+  renderer.setSize(w, h, false);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+
+window.addEventListener("resize", () => {
+  if (nv) nv.resizeListener();
+  resizeStage();
+  if (modelLoaded) fitCamera(true);
+});
+
+(function animate() {
+  requestAnimationFrame(animate);
+  updateAtlasFade();
+  controls.update();
+  renderer.render(scene, camera);
+  drawCallouts();
+})();
+
+initNiivue();
+setButton(btnUpload, "primary");
+requestAnimationFrame(resizeStage);
+</script>
 </body>
 </html>
