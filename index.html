@@ -629,18 +629,19 @@ const CASE = {
      x = left(-) / right(+)      y = inferior(-) / superior(+)      z = posterior(-) / anterior(+)
    All atlas geometry below is authored in this frame. */
 const ATLAS_REGIONS = [
-  { key:"pm", name:"Premotor Cortex",      color:0x3f9fe0, seed:[30, 41,  41], radius:[32,32,15], align:0.05 },
-  { key:"m1", name:"Primary Motor Cortex", color:0xe0483f, seed:[34, 45,  19], radius:[32,32,12], align:0.05 },
-  { key:"s1", name:"Somatosensory Cortex", color:0xa259d9, seed:[41, 32, -43], radius:[30,30,18], align:0.05 },
-  { key:"br", name:"Broca's Area",         color:0xd6cd35, seed:[52,  2,  36], radius:[19,17,21], align:0.15 }
+  /* Smaller, elongated cortical overlays. */
+  { key:"pm", name:"Premotor Cortex",      color:0x3f9fe0, seed:[29,42,42], radius:[24,25,10], align:0.12, feather:0.34, irregular:0.16, phase:0.7 },
+  { key:"m1", name:"Primary Motor Cortex", color:0xe0483f, seed:[35,46,20], radius:[22,27, 8], align:0.12, feather:0.30, irregular:0.14, phase:2.1 },
+  { key:"s1", name:"Somatosensory Cortex", color:0xa259d9, seed:[42,33,-43],radius:[20,24,12], align:0.12, feather:0.33, irregular:0.17, phase:4.0 },
+  { key:"br", name:"Broca's Area",         color:0xd6cd35, seed:[52, 3,36], radius:[14,12,15], align:0.20, feather:0.36, irregular:0.18, phase:5.4 }
 ];
 const TRACT = {
   name: "Fiber Tract (Corticospinal)", color: 0x8ce46e,
-  path: [[36,46,7],[31,30,3],[25,15,-1],[18,2,-5],[12,-14,-9],[8,-32,-13],[6,-50,-17]],
-  strands: 7, radius: 1.15, spread: 3.4
+  path: [[36,46,7],[31,31,3],[25,16,-1],[18,2,-5],[12,-14,-9],[8,-32,-13],[6,-50,-17]],
+  strands: 28, radius: 0.34, spread: 5.2
 };
-const LESION_CARVE_MM = 2.5;   /* atlas patches are cut back this far around the lesion */
-const PATCH_OFFSET_MM = 1.1;   /* patches float this far outside the cortical surface  */
+const LESION_CARVE_MM = 3.2;
+const PATCH_OFFSET_MM = 0.34;
 const CAM_DIR = new THREE.Vector3(0.955, 0.155, 0.255).normalize();
 
 /* ==========================================================================
@@ -1011,90 +1012,102 @@ function buildPatchGeometry(cfg, nearLesion) {
   const pos = geo.attributes.position.array;
   const nor = geo.attributes.normal.array;
   const idx = geo.index.array;
-  const n   = geo.attributes.position.count;
+  const n = geo.attributes.position.count;
 
-  /* 1. snap the seed onto the surface and take its outward normal as reference */
   let best = -1, bestD = Infinity;
   const [sx, sy, sz] = cfg.seed;
   for (let i = 0; i < n; i++) {
-    const dx = pos[3*i] - sx, dy = pos[3*i+1] - sy, dz = pos[3*i+2] - sz;
-    const d = dx*dx + dy*dy + dz*dz;
-    if (d < bestD) { bestD = d; best = i; }
+    const dx=pos[3*i]-sx, dy=pos[3*i+1]-sy, dz=pos[3*i+2]-sz;
+    const d=dx*dx+dy*dy+dz*dz;
+    if (d<bestD) { bestD=d; best=i; }
   }
-  const px = pos[3*best], py = pos[3*best+1], pz = pos[3*best+2];
-  let rx = -nor[3*best], ry = -nor[3*best+1], rz = -nor[3*best+2];
-  const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
+  const px=pos[3*best], py=pos[3*best+1], pz=pos[3*best+2];
+  let rx=-nor[3*best], ry=-nor[3*best+1], rz=-nor[3*best+2];
+  const rl=Math.hypot(rx,ry,rz)||1; rx/=rl; ry/=rl; rz/=rl;
 
-  /* 2. select vertices inside the anisotropic cap, outside the lesion footprint */
-  const ir = [1 / cfg.radius[0], 1 / cfg.radius[1], 1 / cfg.radius[2]];
-  const keep = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    const dx = (pos[3*i]   - px) * ir[0],
-          dy = (pos[3*i+1] - py) * ir[1],
-          dz = (pos[3*i+2] - pz) * ir[2];
-    if (dx*dx + dy*dy + dz*dz > 1) continue;
-    const ox = -nor[3*i], oy = -nor[3*i+1], oz = -nor[3*i+2];
-    if (ox*rx + oy*ry + oz*rz < cfg.align) continue;
-    if (nearLesion(pos[3*i], pos[3*i+1], pos[3*i+2])) continue;
-    keep[i] = 1;
+  const ir=[1/cfg.radius[0],1/cfg.radius[1],1/cfg.radius[2]];
+  const keep=new Uint8Array(n), weight=new Float32Array(n);
+  const noise=(x,y,z)=>
+    Math.sin(x*0.115+cfg.phase)*0.46+
+    Math.sin(y*0.089+z*0.071+cfg.phase*1.7)*0.31+
+    Math.sin((x-z)*0.054+cfg.phase*2.3)*0.23;
+
+  for (let i=0;i<n;i++) {
+    const dx=(pos[3*i]-px)*ir[0], dy=(pos[3*i+1]-py)*ir[1], dz=(pos[3*i+2]-pz)*ir[2];
+    const q=Math.sqrt(dx*dx+dy*dy+dz*dz);
+    const limit=1+cfg.irregular*noise(pos[3*i],pos[3*i+1],pos[3*i+2]);
+    if (q>limit) continue;
+    const ox=-nor[3*i], oy=-nor[3*i+1], oz=-nor[3*i+2];
+    if (ox*rx+oy*ry+oz*rz<cfg.align) continue;
+    if (nearLesion(pos[3*i],pos[3*i+1],pos[3*i+2])) continue;
+    keep[i]=1;
+    weight[i]=THREE.MathUtils.clamp((limit-q)/Math.max(cfg.feather,0.001),0,1);
   }
 
-  /* 3. keep triangles whose three corners survive; remap to a compact buffer */
-  const remap = new Int32Array(n).fill(-1);
-  const P = [], N = [], I = [];
-  for (let t = 0; t < idx.length; t += 3) {
-    const a = idx[t], b = idx[t+1], c = idx[t+2];
-    if (!keep[a] || !keep[b] || !keep[c]) continue;
-    for (const v of [a, b, c]) {
-      if (remap[v] < 0) {
-        remap[v] = P.length / 3;
-        let ox = -nor[3*v], oy = -nor[3*v+1], oz = -nor[3*v+2];
-        const l = Math.hypot(ox, oy, oz) || 1; ox /= l; oy /= l; oz /= l;
-        P.push(pos[3*v]   + ox * PATCH_OFFSET_MM,
-               pos[3*v+1] + oy * PATCH_OFFSET_MM,
-               pos[3*v+2] + oz * PATCH_OFFSET_MM);
-        N.push(ox, oy, oz);
+  const remap=new Int32Array(n).fill(-1);
+  const P=[],N=[],C=[],I=[];
+  const base=new THREE.Color(cfg.color);
+  const pale=base.clone().lerp(new THREE.Color(0xffffff),0.18);
+  const dark=base.clone().multiplyScalar(0.72);
+
+  for (let t=0;t<idx.length;t+=3) {
+    const a=idx[t],b=idx[t+1],c=idx[t+2];
+    if (!keep[a]||!keep[b]||!keep[c]) continue;
+    for (const v of [a,b,c]) {
+      if (remap[v]<0) {
+        remap[v]=P.length/3;
+        let ox=-nor[3*v],oy=-nor[3*v+1],oz=-nor[3*v+2];
+        const l=Math.hypot(ox,oy,oz)||1; ox/=l;oy/=l;oz/=l;
+        P.push(pos[3*v]+ox*PATCH_OFFSET_MM,pos[3*v+1]+oy*PATCH_OFFSET_MM,pos[3*v+2]+oz*PATCH_OFFSET_MM);
+        N.push(ox,oy,oz);
+        const col=dark.clone().lerp(pale,0.25+0.75*weight[v]);
+        C.push(col.r,col.g,col.b);
       }
       I.push(remap[v]);
     }
   }
   if (!I.length) return null;
-  const out = new THREE.BufferGeometry();
-  out.setAttribute("position", new THREE.Float32BufferAttribute(P, 3));
-  out.setAttribute("normal",   new THREE.Float32BufferAttribute(N, 3));
+  const out=new THREE.BufferGeometry();
+  out.setAttribute("position",new THREE.Float32BufferAttribute(P,3));
+  out.setAttribute("normal",new THREE.Float32BufferAttribute(N,3));
+  out.setAttribute("color",new THREE.Float32BufferAttribute(C,3));
   out.setIndex(I);
-  out.userData.seedPoint = new THREE.Vector3(
-    px + rx * PATCH_OFFSET_MM, py + ry * PATCH_OFFSET_MM, pz + rz * PATCH_OFFSET_MM);
+  out.computeBoundingSphere();
+  out.userData.seedPoint=new THREE.Vector3(px+rx*PATCH_OFFSET_MM,py+ry*PATCH_OFFSET_MM,pz+rz*PATCH_OFFSET_MM);
   return out;
 }
 
 function buildTract() {
-  const base = TRACT.path.map(p => new THREE.Vector3(p[0], p[1], p[2]));
-  const g = new THREE.Group();
-  for (let s = 0; s < TRACT.strands; s++) {
-    const f = (s / (TRACT.strands - 1) - 0.5) * 2;
-    const pts = base.map((p, i) => {
-      const taper = Math.sin((i / (base.length - 1)) * Math.PI) * 0.75 + 0.25;
+  const base=TRACT.path.map(p=>new THREE.Vector3(p[0],p[1],p[2]));
+  const g=new THREE.Group();
+  const rnd=n=>{ const x=Math.sin(n*91.731+17.17)*43758.5453; return x-Math.floor(x); };
+  for (let s=0;s<TRACT.strands;s++) {
+    const angle=s*2.3999632297;
+    const radial=Math.sqrt((s+0.5)/TRACT.strands)*TRACT.spread;
+    const bx=Math.cos(angle)*radial, bz=Math.sin(angle)*radial;
+    const pts=base.map((p,i)=>{
+      const u=i/(base.length-1);
+      const taper=Math.pow(Math.sin(u*Math.PI),0.72)*0.82+0.18;
+      const wander=(rnd(s*13+i*7)-0.5)*1.15*taper;
       return new THREE.Vector3(
-        p.x + f * TRACT.spread * taper,
-        p.y + f * TRACT.spread * 0.25 * taper,
-        p.z + Math.sin(f * 2.1) * TRACT.spread * 0.8 * taper
+        p.x+bx*taper+wander,
+        p.y+(rnd(s*5+i)-0.5)*1.0*taper,
+        p.z+bz*taper+Math.sin(u*Math.PI*2+angle)*0.55*taper
       );
     });
-    const curve = new THREE.CatmullRomCurve3(pts, false, "catmullrom", 0.4);
-    const geo = new THREE.TubeGeometry(curve, 110, TRACT.radius, 8, false);
-    const mat = new THREE.MeshPhysicalMaterial({
-      color: TRACT.color, emissive: TRACT.color, emissiveIntensity: 0.35,
-      roughness: 0.4, metalness: 0, transparent: true, opacity: 0,
-      depthWrite: false, side: THREE.DoubleSide
+    const curve=new THREE.CatmullRomCurve3(pts,false,"centripetal",0.45);
+    const r=TRACT.radius*(0.78+rnd(s+30)*0.42);
+    const geo=new THREE.TubeGeometry(curve,72,r,5,false);
+    const mat=new THREE.MeshPhysicalMaterial({
+      color:TRACT.color,emissive:TRACT.color,emissiveIntensity:0.07,
+      roughness:0.62,metalness:0,transparent:true,opacity:0,
+      depthWrite:false,side:THREE.DoubleSide
     });
-    mat.userData.base = 0.9;
+    mat.userData.base=0.56;
     atlasMats.push(mat);
-    const m = new THREE.Mesh(geo, mat);
-    m.renderOrder = 6;
-    g.add(m);
+    const m=new THREE.Mesh(geo,mat); m.renderOrder=6; g.add(m);
   }
-  g.userData.midPoint = new THREE.CatmullRomCurve3(base).getPoint(0.62);
+  g.userData.midPoint=new THREE.CatmullRomCurve3(base,false,"centripetal").getPoint(0.60);
   return g;
 }
 
@@ -1110,11 +1123,12 @@ function buildAtlas() {
     const geo = buildPatchGeometry(cfg, nearLesion);
     if (!geo) { console.warn("empty atlas patch:", cfg.name); continue; }
     const mat = new THREE.MeshPhysicalMaterial({
-      color: cfg.color, emissive: cfg.color, emissiveIntensity: 0.22,
-      roughness: 0.45, metalness: 0, transparent: true, opacity: 0,
+      color: 0xffffff, vertexColors: true,
+      emissive: cfg.color, emissiveIntensity: 0.055,
+      roughness: 0.72, metalness: 0, transparent: true, opacity: 0,
       depthWrite: false, side: THREE.DoubleSide
     });
-    mat.userData.base = 0.72;
+    mat.userData.base = 0.44;
     atlasMats.push(mat);
     const mesh = new THREE.Mesh(geo, mat);
     mesh.renderOrder = 5;
